@@ -1,0 +1,85 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Shell syntax checks
+        run: |
+          bash -n install.sh
+          bash -n uninstall.sh
+          bash -n hooks/pre-commit-seo-check.sh
+
+      - name: Runner compile checks
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import py_compile
+
+          runner_scripts = sorted(Path("scripts").glob("*.py"))
+          if not runner_scripts:
+              raise SystemExit("No runner scripts found under scripts/")
+
+          for script in runner_scripts:
+              py_compile.compile(str(script), doraise=True)
+
+          py_compile.compile("hooks/validate-schema.py", doraise=True)
+          print(f"Compiled {len(runner_scripts)} runner scripts + hooks/helpers.")
+          PY
+
+      - name: Runner help checks
+        run: |
+          python - <<'PY'
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          runner_scripts = sorted(Path("scripts").glob("*.py"))
+          failures = []
+          for script in runner_scripts:
+              proc = subprocess.run(
+                  [sys.executable, str(script), "--help"],
+                  stdout=subprocess.DEVNULL,
+                  stderr=subprocess.DEVNULL,
+              )
+              if proc.returncode != 0:
+                  failures.append(str(script))
+
+          if failures:
+              print("Help checks failed for:")
+              for f in failures:
+                  print(f" - {f}")
+              raise SystemExit(1)
+
+          print(f"Help checks passed for {len(runner_scripts)} runner scripts.")
+          PY
+
+      - name: Tests
+        run: |
+          python -m pytest tests/
+
+      - name: Contract smoke
+        run: |
+          python scripts/run_skill_workflow.py --skill seo-dataforseo https://example.com --json
+          python scripts/run_skill_workflow.py --skill seo-image-gen https://example.com --json

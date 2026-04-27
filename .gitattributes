@@ -1,0 +1,44 @@
+# .gitattributes - GitHub Linguist overrides for accurate language detection
+#
+# This is a Python + Markdown skills project. Shell and PowerShell install
+# scripts inflate the language bar, hiding the actual content.
+
+# Normalize line endings for cross-platform collaboration.
+* text=auto
+
+# Keep source/docs/config on LF.
+*.md text eol=lf
+*.txt text eol=lf
+*.py text eol=lf
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.xml text eol=lf
+*.csv text eol=lf
+
+# Keep Windows scripts on CRLF.
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.zip binary
+*.pdf binary
+
+# Install scripts are tooling, not the project's primary language
+*.sh linguist-documentation
+*.ps1 linguist-documentation
+install.* linguist-documentation
+
+# Generated/vendored files (excluded from language stats)
+*.min.js linguist-generated
+*.min.css linguist-generated
+dist/** linguist-generated
+vendor/** linguist-vendored
+third_party/** linguist-vendored

@@ -1,0 +1,274 @@
+{
+  "templates": [
+    {
+      "type": "VideoObject",
+      "description": "Video content pages with thumbnails, duration, and playback URLs. Enables video rich results in Google Search.",
+      "template": {
+        "@context": "https://schema.org",
+        "@type": "VideoObject",
+        "name": "[Video Title]",
+        "description": "[Video Description]",
+        "thumbnailUrl": "[Thumbnail Image URL]",
+        "uploadDate": "[YYYY-MM-DD]",
+        "duration": "[ISO 8601 Duration, e.g. PT1H30M]",
+        "contentUrl": "[Direct Video File URL]",
+        "embedUrl": "[Embed Player URL]",
+        "publisher": {
+          "@type": "Organization",
+          "name": "[Publisher Name]",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "[Logo URL]"
+          }
+        }
+      }
+    },
+    {
+      "type": "BroadcastEvent",
+      "description": "Live streaming content for LIVE badge in Google Search results. Requires VideoObject and isLiveBroadcast flag.",
+      "template": {
+        "@context": "https://schema.org",
+        "@type": "VideoObject",
+        "name": "[Live Stream Title]",
+        "description": "[Live Stream Description]",
+        "thumbnailUrl": "[Thumbnail Image URL]",
+        "uploadDate": "[YYYY-MM-DD]",
+        "contentUrl": "[Stream URL]",
+        "embedUrl": "[Embed Player URL]",
+        "publication": {
+          "@type": "BroadcastEvent",
+          "isLiveBroadcast": true,
+          "startDate": "[YYYY-MM-DDTHH:MM:SSZ]",
+          "endDate": "[YYYY-MM-DDTHH:MM:SSZ]"
+        }
+      }
+    },
+    {
+      "type": "Clip",
+      "description": "Key moments or chapters within a video. Enables key moments rich results with timestamp links.",
+      "template": {
+        "@context": "https://schema.org",
+        "@type": "VideoObject",
+        "name": "[Video Title]",
+        "description": "[Video Description]",
+        "thumbnailUrl": "[Thumbnail Image URL]",
+        "uploadDate": "[YYYY-MM-DD]",
+        "contentUrl": "[Direct Video File URL]",
+        "hasPart": [
+          {
+            "@type": "Clip",
+            "name": "[Clip Title]",
+            "startOffset": 0,
+            "endOffset": 120,
+            "url": "[Video URL with timestamp, e.g. ?t=0]"
+          },
+          {
+            "@type": "Clip",
+            "name": "[Next Clip Title]",
+            "startOffset": 120,
+            "endOffset": 300,
+            "url": "[Video URL with timestamp, e.g. ?t=120]"
+          }
+        ]
+      }
+    },
+    {
+      "type": "SeekToAction",
+      "description": "Enable seek functionality in video rich results. Allows users to jump to specific timestamps from search.",
+      "template": {
+        "@context": "https://schema.org",
+        "@type": "VideoObject",
+        "name": "[Video Title]",
+        "description": "[Video Description]",
+        "thumbnailUrl": "[Thumbnail Image URL]",
+        "uploadDate": "[YYYY-MM-DD]",
+        "contentUrl": "[Direct Video File URL]",
+        "potentialAction": {
+          "@type": "SeekToAction",
+          "target": "[Video URL]?t={seek_to_second_number}",
+          "startOffset-input": "required name=seek_to_second_number"
+        }
+      }
+    },
+    {
+      "type": "SoftwareSourceCode",
+      "description": "Open source and code repository pages. Describes programming language, platform, and repository location.",
+      "template": {
+        "@context": "https://schema.org",
+        "@type": "SoftwareSourceCode",
+        "name": "[Repository Name]",
+        "description": "[Repository Description]",
+        "codeRepository": "[Repository URL, e.g. https://github.com/org/repo]",
+        "programmingLanguage": "[Language, e.g. Python]",
+        "runtimePlatform": "[Platform, e.g. Node.js]",
+        "author": {
+          "@type": "Person",
+          "name": "[Author Name]"
+        },
+        "license": "[License URL, e.g. https://opensource.org/licenses/MIT]",
+        "dateCreated": "[YYYY-MM-DD]",
+        "dateModified": "[YYYY-MM-DD]"
+      }
+    },
+    {
+      "type": "ProductGroup",
+      "description": "E-commerce product variants grouped by attributes like size, color. Enables variant-aware rich results with variesBy and hasVariant properties.",
+      "template": {
+        "@context": "https://schema.org",
+        "@type": "ProductGroup",
+        "name": "[Product Name]",
+        "description": "[Product group description]",
+        "productGroupID": "[product-group-id]",
+        "variesBy": ["https://schema.org/size", "https://schema.org/color"],
+        "hasVariant": [
+          {
+            "@type": "Product",
+            "name": "[Variant - Red, Large]",
+            "sku": "[SKU-001]",
+            "color": "[Red]",
+            "size": "[Large]",
+            "offers": {
+              "@type": "Offer",
+              "price": "[29.99]",
+              "priceCurrency": "USD",
+              "availability": "https://schema.org/InStock"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "ProfilePage",
+      "description": "Author, creator, or team member profile pages. Enhances E-E-A-T signals with mainEntity Person markup and sameAs links.",
+      "template": {
+        "@context": "https://schema.org",
+        "@type": "ProfilePage",
+        "mainEntity": {
+          "@type": "Person",
+          "name": "[Author Name]",
+          "url": "[Profile URL]",
+          "description": "[Author bio and expertise summary]",
+          "sameAs": [
+            "[Twitter URL]",
+            "[LinkedIn URL]"
+          ]
+        }
+      }
+    },
+    {
+      "type": "Certification",
+      "description": "Product certifications (Energy Star, safety, organic, etc.). Replaced EnergyConsumptionDetails in April 2025.",
+      "template": {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": "[Product Name]",
+        "hasCertification": {
+          "@type": "Certification",
+          "certificationIdentification": "[Certification Name, e.g. Energy Star]",
+          "issuedBy": {
+            "@type": "Organization",
+            "name": "[Issuing Organization, e.g. EPA]"
+          }
+        }
+      }
+    },
+    {
+      "type": "OfferShippingDetails",
+      "description": "Shipping and delivery information for e-commerce products. Includes shipping rate, handling time, and transit time.",
+      "template": {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": "[Product Name]",
+        "offers": {
+          "@type": "Offer",
+          "price": "[Price]",
+          "priceCurrency": "USD",
+          "shippingDetails": {
+            "@type": "OfferShippingDetails",
+            "shippingRate": {
+              "@type": "MonetaryAmount",
+              "value": "[0]",
+              "currency": "USD"
+            },
+            "deliveryTime": {
+              "@type": "ShippingDeliveryTime",
+              "handlingTime": {
+                "@type": "QuantitativeValue",
+                "minValue": 0,
+                "maxValue": 1,
+                "unitCode": "DAY"
+              },
+              "transitTime": {
+                "@type": "QuantitativeValue",
+                "minValue": 1,
+                "maxValue": 5,
+                "unitCode": "DAY"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Product (Full E-commerce)",
+      "description": "Complete e-commerce product page with pricing, availability, reviews, brand, and offers. Enables product rich results in Google Search. Added in v1.9.0 for seo-ecommerce.",
+      "template": {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": "[Product Name]",
+        "description": "[Product Description]",
+        "image": "[Product Image URL]",
+        "sku": "[SKU]",
+        "brand": {
+          "@type": "Brand",
+          "name": "[Brand Name]"
+        },
+        "offers": {
+          "@type": "Offer",
+          "price": "[Price]",
+          "priceCurrency": "[Currency Code, e.g. USD]",
+          "availability": "https://schema.org/InStock",
+          "url": "[Product Page URL]",
+          "priceValidUntil": "[YYYY-MM-DD]",
+          "hasMerchantReturnPolicy": {
+            "@type": "MerchantReturnPolicy",
+            "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
+            "merchantReturnDays": 30
+          },
+          "shippingDetails": {
+            "@type": "OfferShippingDetails",
+            "shippingRate": {
+              "@type": "MonetaryAmount",
+              "value": "[Shipping Cost]",
+              "currency": "[Currency Code]"
+            }
+          }
+        },
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "[Average Rating]",
+          "reviewCount": "[Number of Reviews]"
+        }
+      }
+    },
+    {
+      "type": "ItemList",
+      "description": "Hub/pillar pages listing related content items. Used for content cluster landing pages, resource directories, and top-N lists. Added in v1.9.0 for seo-cluster.",
+      "template": {
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        "name": "[Hub Page Title]",
+        "description": "[Hub Page Description]",
+        "numberOfItems": "[Count]",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "url": "[Spoke Page URL]",
+            "name": "[Spoke Page Title]"
+          }
+        ]
+      }
+    }
+  ]
+}
