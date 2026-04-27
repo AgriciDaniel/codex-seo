@@ -43,7 +43,7 @@ It covers technical SEO, on-page analysis, content quality, E-E-A-T, schema mark
 - Repository visibility: private preview.
 - Current release: [`v1.9.6-codex.1`](https://github.com/AgriciDaniel/codex-seo/releases/tag/v1.9.6-codex.1).
 - Installer default ref: `v1.9.6-codex.1`.
-- Latest local validation: 42 tests passing, full installed smoke suite passing, demo readiness passing.
+- Latest local validation: 47 tests passing, full installed smoke suite passing, demo readiness passing.
 - Runtime credentials stay outside the repo under Codex/local config paths.
 - Discovery topics: `codex`, `codex-cli`, `codex-skills`, `seo`, `ai-seo`, `ai-search`, `technical-seo`, `generative-engine-optimization`, `core-web-vitals`, `schema-markup`, `local-seo`, `ecommerce-seo`, `content-strategy`, `google-search-console`, `dataforseo`, `mcp`, `python`, `automation`, `marketing-automation`, `open-source`.
 
@@ -132,6 +132,7 @@ Command-style prompts also work:
 Codex SEO is designed as a Codex-first routing layer: the user can ask naturally, the orchestrator selects the right specialist workflow, and deterministic runners write repeatable artifacts instead of relying on invisible chat-only output.
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"background":"#05080d","primaryColor":"#07131c","primaryTextColor":"#f5fbff","primaryBorderColor":"#00d7e6","lineColor":"#00d7e6","secondaryColor":"#06222a","tertiaryColor":"#ff9f1c","edgeLabelBackground":"#05080d","fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif"}}}%%
 flowchart LR
   user["User prompt<br/>natural language or /seo"] --> orchestrator["skills/seo/SKILL.md<br/>main orchestrator"]
   orchestrator --> cache[".seo-cache<br/>shared evidence"]
@@ -140,6 +141,13 @@ flowchart LR
   skills --> scripts["scripts/<br/>deterministic runners"]
   scripts --> output["output/<br/>Markdown, JSON, HTML, PDF"]
   cache --> skills
+  class user,orchestrator accent
+  class cache,scripts data
+  class output output
+  classDef default fill:#07131c,stroke:#00d7e6,color:#f5fbff,stroke-width:1.4px
+  classDef accent fill:#10151a,stroke:#ff9f1c,color:#fff7ed,stroke-width:2px
+  classDef data fill:#06222a,stroke:#21e6c1,color:#ecfeff,stroke-width:1.5px
+  classDef output fill:#15101a,stroke:#ff9f1c,color:#fff7ed,stroke-width:1.8px
 ```
 
 ## Commands
@@ -186,6 +194,7 @@ Full command details live in [docs/COMMANDS.md](docs/COMMANDS.md).
 - Writes markdown reports, JSON summaries, cache artifacts, and optional premium HTML/PDF output.
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"background":"#05080d","primaryColor":"#07131c","primaryTextColor":"#f5fbff","primaryBorderColor":"#00d7e6","lineColor":"#00d7e6","secondaryColor":"#06222a","tertiaryColor":"#ff9f1c","edgeLabelBackground":"#05080d","fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif"}}}%%
 flowchart TD
   request["Audit request"] --> detect["Detect site type<br/>business model and context"]
   detect --> core["Core audit specialists"]
@@ -217,6 +226,13 @@ flowchart TD
   ecommerce --> report
   drift --> report
   report --> artifacts["SUMMARY.json<br/>FULL-AUDIT-REPORT.md<br/>ACTION-PLAN.md<br/>optional HTML/PDF"]
+  class request,detect accent
+  class core,conditional data
+  class report,artifacts output
+  classDef default fill:#07131c,stroke:#00d7e6,color:#f5fbff,stroke-width:1.4px
+  classDef accent fill:#10151a,stroke:#ff9f1c,color:#fff7ed,stroke-width:2px
+  classDef data fill:#06222a,stroke:#21e6c1,color:#ecfeff,stroke-width:1.5px
+  classDef output fill:#15101a,stroke:#ff9f1c,color:#fff7ed,stroke-width:1.8px
 ```
 
 ### Technical SEO
@@ -250,6 +266,7 @@ flowchart TD
 - Track title, meta, headings, canonical, schema, robots, links, and content deltas.
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"background":"#05080d","primaryColor":"#07131c","primaryTextColor":"#f5fbff","primaryBorderColor":"#00d7e6","lineColor":"#00d7e6","actorBkg":"#07131c","actorBorder":"#00d7e6","actorTextColor":"#f5fbff","actorLineColor":"#21e6c1","signalColor":"#21e6c1","signalTextColor":"#f5fbff","labelBoxBkgColor":"#10151a","labelTextColor":"#f5fbff","noteBkgColor":"#10151a","noteTextColor":"#f5fbff","activationBkgColor":"#06222a","activationBorderColor":"#ff9f1c","fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif"}}}%%
 sequenceDiagram
   participant Before as Baseline
   participant Runner as Drift runner
@@ -281,6 +298,7 @@ sequenceDiagram
 Optional integrations enrich the same workflow surface. If credentials or MCP servers are missing, wrappers return `setup_required` or `mcp_configured` states with no fabricated live data.
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"background":"#05080d","primaryColor":"#07131c","primaryTextColor":"#f5fbff","primaryBorderColor":"#00d7e6","lineColor":"#00d7e6","secondaryColor":"#06222a","tertiaryColor":"#ff9f1c","edgeLabelBackground":"#05080d","fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif"}}}%%
 flowchart LR
   codex["Codex SEO workflows"] --> local["Local evidence<br/>HTML, robots, sitemaps, screenshots"]
   codex --> dfs["DataForSEO MCP<br/>SERP, keywords, backlinks, maps"]
@@ -292,6 +310,13 @@ flowchart LR
   google --> artifacts
   firecrawl --> artifacts
   banana --> artifacts
+  class codex accent
+  class local,dfs,google,firecrawl,banana data
+  class artifacts output
+  classDef default fill:#07131c,stroke:#00d7e6,color:#f5fbff,stroke-width:1.4px
+  classDef accent fill:#10151a,stroke:#ff9f1c,color:#fff7ed,stroke-width:2px
+  classDef data fill:#06222a,stroke:#21e6c1,color:#ecfeff,stroke-width:1.5px
+  classDef output fill:#15101a,stroke:#ff9f1c,color:#fff7ed,stroke-width:1.8px
 ```
 
 Demo readiness:
@@ -337,6 +362,7 @@ python scripts/bootstrap_environment.py --venv .venv --json
 Artifacts are written to `output/`. Shared project cache is written to `.seo-cache/`. Both are ignored by git.
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"background":"#05080d","primaryColor":"#07131c","primaryTextColor":"#f5fbff","primaryBorderColor":"#00d7e6","lineColor":"#00d7e6","secondaryColor":"#06222a","tertiaryColor":"#ff9f1c","edgeLabelBackground":"#05080d","fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif"}}}%%
 flowchart LR
   cli["run_skill_workflow.py<br/>single workflow"] --> json["JSON result"]
   cli --> markdown["Markdown report"]
@@ -347,6 +373,13 @@ flowchart LR
   markdown --> outputRoot
   json --> outputRoot
   cacheWrite --> cache[".seo-cache"]
+  class cli,suite,verify accent
+  class cacheWrite,readiness data
+  class json,markdown,outputRoot,cache output
+  classDef default fill:#07131c,stroke:#00d7e6,color:#f5fbff,stroke-width:1.4px
+  classDef accent fill:#10151a,stroke:#ff9f1c,color:#fff7ed,stroke-width:2px
+  classDef data fill:#06222a,stroke:#21e6c1,color:#ecfeff,stroke-width:1.5px
+  classDef output fill:#15101a,stroke:#ff9f1c,color:#fff7ed,stroke-width:1.8px
 ```
 
 ## Architecture
@@ -354,6 +387,7 @@ flowchart LR
 The repository separates Codex-facing instructions, deterministic runtime code, optional provider setup, and validation contracts. That keeps the skill system usable in chat, installable as a suite, and testable from CI/API workflows.
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"background":"#05080d","primaryColor":"#07131c","primaryTextColor":"#f5fbff","primaryBorderColor":"#00d7e6","lineColor":"#00d7e6","secondaryColor":"#06222a","tertiaryColor":"#ff9f1c","edgeLabelBackground":"#05080d","fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif"}}}%%
 flowchart TB
   manifest[".codex-plugin/plugin.json"] --> skillsRoot["skills/"]
   skillsRoot --> orchestrator["seo/SKILL.md<br/>routing and orchestration"]
@@ -367,6 +401,13 @@ flowchart TB
   testsDir["tests/<br/>contract and smoke coverage"] --> manifest
   testsDir --> skillsRoot
   testsDir --> scriptsDir
+  class manifest,orchestrator accent
+  class skillsRoot,specialists,agentsDir,scriptsDir,extensionsDir,references,testsDir data
+  class cacheDir,outputDir output
+  classDef default fill:#07131c,stroke:#00d7e6,color:#f5fbff,stroke-width:1.4px
+  classDef accent fill:#10151a,stroke:#ff9f1c,color:#fff7ed,stroke-width:2px
+  classDef data fill:#06222a,stroke:#21e6c1,color:#ecfeff,stroke-width:1.5px
+  classDef output fill:#15101a,stroke:#ff9f1c,color:#fff7ed,stroke-width:1.8px
 ```
 
 ```text
