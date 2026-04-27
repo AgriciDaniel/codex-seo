@@ -1,0 +1,52 @@
+{
+  "name": "codex-seo",
+  "version": "1.9.6+codex.1",
+  "description": "Comprehensive SEO analysis skill suite for Codex. Includes technical SEO, content quality, schema markup, image optimization, sitemap architecture, GEO/AEO, backlinks, local SEO, maps intelligence, semantic clustering, SXO, drift monitoring, e-commerce SEO, Google APIs, and deterministic reporting workflows.",
+  "author": {
+    "name": "AgriciDaniel",
+    "url": "https://github.com/AgriciDaniel"
+  },
+  "homepage": "https://github.com/AgriciDaniel/codex-seo",
+  "repository": "https://github.com/AgriciDaniel/codex-seo",
+  "license": "MIT",
+  "keywords": [
+    "seo",
+    "technical-seo",
+    "content-quality",
+    "schema-markup",
+    "core-web-vitals",
+    "local-seo",
+    "geo",
+    "ai-search",
+    "sitemap",
+    "image-optimization",
+    "google-search-console",
+    "pagespeed",
+    "crux",
+    "backlinks",
+    "semantic-clustering",
+    "sxo",
+    "drift-monitoring",
+    "ecommerce-seo"
+  ],
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "Codex SEO",
+    "shortDescription": "Run SEO audits, schema checks, GEO analysis, and reports in Codex.",
+    "longDescription": "Codex SEO is a local SEO analysis suite with 20+ specialized skills, Codex agent profiles, shared cache artifacts, optional API integrations, and deterministic headless wrappers for repeatable audits and reports.",
+    "developerName": "AgriciDaniel",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/AgriciDaniel/codex-seo",
+    "defaultPrompt": [
+      "Audit this website for SEO issues.",
+      "Check schema and Core Web Vitals for this URL.",
+      "Build an SEO action plan for this business."
+    ],
+    "brandColor": "#16A34A"
+  }
+}

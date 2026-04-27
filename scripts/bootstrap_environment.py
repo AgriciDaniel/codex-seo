@@ -1,0 +1,157 @@
+#!/usr/bin/env python3
+"""
+Bootstrap a Codex SEO runtime for headless CLI/API execution.
+
+Usage:
+    python scripts/bootstrap_environment.py --json
+    python scripts/bootstrap_environment.py --venv .codex-seo-venv --json
+    python scripts/bootstrap_environment.py --skip-playwright-browser --json
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+import venv
+from pathlib import Path
+from typing import Any
+
+
+ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_VENV = ROOT / ".codex-seo-venv"
+
+
+def run_command(cmd: list[str], cwd: Path | None = None) -> dict[str, Any]:
+    """Run a subprocess and capture output."""
+    completed = subprocess.run(cmd, cwd=cwd or ROOT, capture_output=True, text=True)
+    return {
+        "cmd": cmd,
+        "returncode": completed.returncode,
+        "stdout": completed.stdout,
+        "stderr": completed.stderr,
+        "ok": completed.returncode == 0,
+    }
+
+
+def python_in_venv(venv_dir: Path) -> Path:
+    """Resolve the Python executable inside a venv."""
+    candidates = [
+        venv_dir / "Scripts" / "python.exe",
+        venv_dir / "bin" / "python",
+        venv_dir / "bin" / "python3",
+    ]
+    preferred = candidates[0] if os.name == "nt" else candidates[1]
+    for candidate in [preferred, *candidates]:
+        if candidate.exists():
+            return candidate
+    return preferred
+
+
+def parse_json_stdout(step: dict[str, Any]) -> dict[str, Any] | None:
+    """Parse a subprocess stdout payload as JSON when possible."""
+    if not step["ok"] or not step["stdout"].strip():
+        return None
+    try:
+        return json.loads(step["stdout"])
+    except json.JSONDecodeError:
+        return None
+
+
+def bootstrap_environment(
+    venv_dir: Path | None = None,
+    install_playwright_browser: bool = True,
+    with_deps: bool = False,
+    target: str | None = None,
+) -> dict[str, Any]:
+    """Create/update a runtime venv and install dependencies."""
+    venv_dir = venv_dir or DEFAULT_VENV
+    created = False
+    if not venv_dir.exists():
+        builder = venv.EnvBuilder(with_pip=True)
+        builder.create(venv_dir)
+        created = True
+
+    venv_python = python_in_venv(venv_dir)
+    if not venv_python.exists():
+        raise RuntimeError(f"Virtual environment Python not found: {venv_python}")
+
+    steps = []
+    steps.append(run_command([str(venv_python), "-m", "pip", "install", "--upgrade", "pip"]))
+    steps.append(run_command([str(venv_python), "-m", "pip", "install", "-r", str(ROOT / "requirements.txt")]))
+
+    playwright_step = None
+    if install_playwright_browser:
+        cmd = [str(venv_python), "-m", "playwright", "install"]
+        if with_deps:
+            cmd.append("--with-deps")
+        cmd.append("chromium")
+        playwright_step = run_command(cmd)
+        steps.append(playwright_step)
+
+    verify_cmd = [str(venv_python), str(ROOT / "scripts" / "verify_environment.py"), "--json"]
+    if target:
+        verify_cmd.extend(["--target", target])
+    verification_step = run_command(verify_cmd)
+    verification = parse_json_stdout(verification_step)
+    steps.append(verification_step)
+
+    core_ready = bool(verification and verification.get("capabilities", {}).get("core_ready"))
+    full_ready = bool(verification and verification.get("capabilities", {}).get("full_ready"))
+    ok = (
+        all(step["ok"] for step in steps[:2])
+        and verification_step["ok"]
+        and core_ready
+    )
+    return {
+        "ok": ok,
+        "full_ready": full_ready,
+        "created_venv": created,
+        "venv": str(venv_dir),
+        "python": str(venv_python),
+        "steps": steps,
+        "verification": verification,
+    }
+
+
+def main() -> int:
+    """CLI entry point."""
+    parser = argparse.ArgumentParser(description="Bootstrap a Codex SEO runtime environment")
+    parser.add_argument("--venv", help="Virtualenv directory to create/use")
+    parser.add_argument("--skip-playwright-browser", action="store_true", help="Skip `playwright install chromium`")
+    parser.add_argument("--with-deps", action="store_true", help="Pass --with-deps to Playwright install")
+    parser.add_argument("--target", help="Optional URL to validate after bootstrap")
+    parser.add_argument("--json", action="store_true", help="Output JSON")
+    args = parser.parse_args()
+
+    result = bootstrap_environment(
+        venv_dir=Path(args.venv) if args.venv else None,
+        install_playwright_browser=not args.skip_playwright_browser,
+        with_deps=args.with_deps,
+        target=args.target,
+    )
+
+    if args.json:
+        print(json.dumps(result, indent=2))
+        return 0 if result["ok"] else 1
+
+    print(f"Venv: {result['venv']}")
+    print(f"Python: {result['python']}")
+    print(f"Created: {'YES' if result['created_venv'] else 'NO'}")
+    print(f"OK: {'YES' if result['ok'] else 'NO'}")
+    print(f"Full ready: {'YES' if result.get('full_ready') else 'NO'}")
+    if result.get("verification"):
+        verification = result["verification"]
+        print(f"Ready: {'YES' if verification.get('ready') else 'NO'}")
+        print(f"Full ready: {'YES' if verification.get('capabilities', {}).get('full_ready') else 'NO'}")
+        print(f"Core ready: {'YES' if verification.get('capabilities', {}).get('core_ready') else 'NO'}")
+        print(f"Visual ready: {'YES' if verification.get('capabilities', {}).get('visual_ready') else 'NO'}")
+    for step in result["steps"]:
+        print(f"- {'OK' if step['ok'] else 'FAIL'}: {' '.join(step['cmd'])}")
+    return 0 if result["ok"] else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

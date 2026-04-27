@@ -1,0 +1,11 @@
+[project]
+name = "codex-seo"
+version = "1.9.6+codex.1"
+description = "Comprehensive SEO analysis skill suite for Codex"
+requires-python = ">=3.10"
+license = "MIT"
+readme = "README.md"
+
+[project.urls]
+Homepage = "https://github.com/AgriciDaniel/codex-seo"
+Repository = "https://github.com/AgriciDaniel/codex-seo"

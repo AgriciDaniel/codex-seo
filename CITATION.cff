@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "Codex SEO"
+version: "1.9.6+codex.1"
+date-released: "2026-04-27"
+authors:
+  - name: "AgriciDaniel"
+url: "https://github.com/AgriciDaniel/codex-seo"
+license: "MIT"
+keywords:
+  - seo
+  - codex
+  - codex-cli
+  - seo-audit
+  - python
+references:
+  - type: software
+    title: "codex-seo"
+    authors:
+      - name: "AgriciDaniel"
+    repository-code: "https://github.com/AgriciDaniel/codex-seo"
