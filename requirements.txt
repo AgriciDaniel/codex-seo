@@ -17,5 +17,5 @@ openpyxl>=3.1.0,<4.0.0          # Excel export for Google SEO reports
 google-api-python-client>=2.100.0,<3.0.0
 google-auth>=2.20.0,<3.0.0
 google-auth-oauthlib>=1.0.0,<2.0.0
-google-auth-httplib2>=0.2.0,<1.0.0
+google-auth-httplib2>=0.3.1,<1.0.0
 google-analytics-data>=0.18.0,<1.0.0
