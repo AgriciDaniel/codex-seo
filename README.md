@@ -19,7 +19,7 @@ irm https://raw.githubusercontent.com/AgriciDaniel/codex-seo/main/install.ps1 | 
 Installer overrides:
 
 - `CODEX_SEO_REPO` - fork or local Git path
-- `CODEX_SEO_REF` - branch, tag, or commit-ish
+- `CODEX_SEO_REF` - branch, tag, or commit-ish; defaults to `v1.9.6-codex.1`
 - `CODEX_HOME` - alternate Codex home, defaults to `~/.codex`
 - `CODEX_SEO_SKIP_PLAYWRIGHT_BROWSER=1` - skip Chromium install
 - `CODEX_SEO_PLAYWRIGHT_WITH_DEPS=1` - ask Playwright to install system deps
