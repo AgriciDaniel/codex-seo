@@ -41,8 +41,8 @@ It covers technical SEO, on-page analysis, content quality, E-E-A-T, schema mark
 ## Status
 
 - Repository visibility: private preview.
-- Current release: [`v1.9.6-codex.1`](https://github.com/AgriciDaniel/codex-seo/releases/tag/v1.9.6-codex.1).
-- Installer default ref: `v1.9.6-codex.1`.
+- Current release: [`v1.9.6-codex.2`](https://github.com/AgriciDaniel/codex-seo/releases/tag/v1.9.6-codex.2).
+- Installer default ref: `v1.9.6-codex.2`.
 - Latest local validation: 47 tests passing, full installed smoke suite passing, demo readiness passing.
 - Runtime credentials stay outside the repo under Codex/local config paths.
 - Discovery topics: `codex`, `codex-cli`, `codex-skills`, `seo`, `ai-seo`, `ai-search`, `technical-seo`, `generative-engine-optimization`, `core-web-vitals`, `schema-markup`, `local-seo`, `ecommerce-seo`, `content-strategy`, `google-search-console`, `dataforseo`, `mcp`, `python`, `automation`, `marketing-automation`, `open-source`.
@@ -90,7 +90,7 @@ irm https://raw.githubusercontent.com/AgriciDaniel/codex-seo/main/install.ps1 | 
 ```bash
 CODEX_HOME=~/.codex \
 CODEX_SEO_REPO=https://github.com/AgriciDaniel/codex-seo \
-CODEX_SEO_REF=v1.9.6-codex.1 \
+CODEX_SEO_REF=v1.9.6-codex.2 \
 bash install.sh
 ```
 
@@ -98,7 +98,7 @@ bash install.sh
 |---|---|
 | `CODEX_HOME` | Alternate Codex home. Defaults to `~/.codex`. |
 | `CODEX_SEO_REPO` | Git URL, fork URL, or local repository path. |
-| `CODEX_SEO_REF` | Branch, tag, or commit. Defaults to `v1.9.6-codex.1`. |
+| `CODEX_SEO_REF` | Branch, tag, or commit. Defaults to `v1.9.6-codex.2`. |
 | `CODEX_SEO_SKIP_PLAYWRIGHT_BROWSER=1` | Skip Chromium install for visual/PDF workflows. |
 | `CODEX_SEO_PLAYWRIGHT_WITH_DEPS=1` | Ask Playwright to install system dependencies where supported. |
 
