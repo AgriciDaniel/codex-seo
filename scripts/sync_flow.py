@@ -12,7 +12,8 @@ import subprocess
 import sys
 import tempfile
 import urllib.parse
-import urllib.request
+
+import requests
 
 
 API_ROOT = "https://api.github.com/repos/AgriciDaniel/flow/contents"
@@ -80,18 +81,18 @@ def content_url(path, ref):
 def api_get(path, ref, headers):
     url = content_url(path, ref)
     _validate_github_url(url)
-    request = urllib.request.Request(url, headers=headers)
     try:
-        with urllib.request.urlopen(request, timeout=15) as response:
-            data = response.read(_SIZE_LIMIT + 1)
-            if len(data) > _SIZE_LIMIT:
-                raise ValueError(f"Response for {path!r} exceeds {_SIZE_LIMIT} bytes")
-            return json.loads(data)
-    except urllib.error.HTTPError as exc:
-        if exc.code == 403 and "Authorization" not in headers:
+        response = requests.get(url, headers=headers, timeout=15)
+        if response.status_code == 403 and "Authorization" not in headers:
             authed = _authed_headers()
             if "Authorization" in authed:
                 return api_get(path, ref, authed)
+        response.raise_for_status()
+        data = response.content[: _SIZE_LIMIT + 1]
+        if len(data) > _SIZE_LIMIT:
+            raise ValueError(f"Response for {path!r} exceeds {_SIZE_LIMIT} bytes")
+        return json.loads(data)
+    except requests.HTTPError:
         raise
 
 

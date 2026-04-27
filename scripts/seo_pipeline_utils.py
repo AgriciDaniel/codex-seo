@@ -102,6 +102,13 @@ def validate_public_url(target: str) -> str:
     return normalized
 
 
+def validate_public_site_root(target: str) -> str:
+    """Return a site root after public-host validation."""
+    normalized = validate_public_url(target)
+    parsed = urlparse(normalized)
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
 def normalize_site_root(target: str) -> str:
     """Return the canonical site root for a URL."""
     normalized = normalize_url(target)
@@ -159,9 +166,39 @@ def ensure_cache_gitignore(repo_root: Path) -> None:
     gitignore_path.write_text(f"{current}{prefix}.seo-cache/\n", encoding="utf-8")
 
 
+class PublicURLSession(requests.Session):
+    """Requests session that blocks non-public URLs before every request hop."""
+
+    def request(self, method: str, url: str | bytes, **kwargs: Any) -> requests.Response:
+        """Validate the initial request URL before preparing it."""
+        if isinstance(url, bytes):
+            url = url.decode("utf-8")
+        return super().request(method, validate_public_url(str(url)), **kwargs)
+
+    def send(self, request: requests.PreparedRequest, **kwargs: Any) -> requests.Response:
+        """Validate prepared URLs, including redirect follow-up requests."""
+        if request.url:
+            request.url = validate_public_url(request.url)
+        return super().send(request, **kwargs)
+
+
+def install_playwright_public_url_guard(page: Any) -> None:
+    """Block Playwright navigation/subresource requests to non-public URLs."""
+
+    def guard(route: Any, request: Any) -> None:
+        try:
+            validate_public_url(request.url)
+        except ValueError:
+            route.abort()
+            return
+        route.continue_()
+
+    page.route("**/*", guard)
+
+
 def build_session() -> requests.Session:
-    """Create a requests session with the standard QA user agent."""
-    session = requests.Session()
+    """Create a safe requests session with the standard QA user agent."""
+    session = PublicURLSession()
     session.headers.update({"User-Agent": DEFAULT_USER_AGENT})
     return session
 

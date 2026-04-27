@@ -19,6 +19,7 @@ from bs4 import BeautifulSoup
 
 from analyze_sitemap import collect_sitemap_urls
 from parse_html import parse_html
+from seo_pipeline_utils import build_session, validate_public_site_root
 
 
 DEFAULT_TIMEOUT = 20
@@ -33,15 +34,7 @@ def now_iso() -> str:
 
 def normalize_site_url(target: str) -> str:
     """Normalize a domain or URL to a site root."""
-    parsed = urlparse(target)
-    if not parsed.scheme:
-        target = f"https://{target}"
-        parsed = urlparse(target)
-    if parsed.scheme not in {"http", "https"}:
-        raise ValueError(f"Invalid URL scheme: {parsed.scheme}")
-    if not parsed.netloc:
-        raise ValueError("Invalid URL: missing hostname")
-    return f"{parsed.scheme}://{parsed.netloc}"
+    return validate_public_site_root(target)
 
 
 def load_json(path: Path) -> dict[str, Any] | None:
@@ -62,7 +55,7 @@ def fetch_page(session: requests.Session, url: str, timeout: int) -> tuple[reque
             headers={"User-Agent": "Mozilla/5.0 Codex-SEO-QA"},
         )
         return response, None
-    except requests.RequestException as exc:
+    except (requests.RequestException, ValueError) as exc:
         return None, str(exc)
 
 
@@ -301,7 +294,7 @@ def generate_competitor_assets(target: str, timeout: int = DEFAULT_TIMEOUT) -> d
     site_meta = load_json(CACHE_ROOT / "site-meta.json") or {}
     plan_cache = load_json(CACHE_ROOT / "plan.json") or {}
 
-    session = requests.Session()
+    session = build_session()
     homepage = extract_page_context(session, site_root, timeout)
     pricing = extract_page_context(session, f"{site_root}/pricing", timeout)
     docs = extract_page_context(session, f"{site_root}/docs", timeout)

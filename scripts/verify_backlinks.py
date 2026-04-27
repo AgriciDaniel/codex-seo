@@ -31,7 +31,7 @@ sys.path.insert(0, _SCRIPTS_DIR)
 try:
     from fetch_page import fetch_page
     from parse_html import parse_html
-    from google_auth import validate_url
+    from seo_pipeline_utils import build_session, validate_public_url
 except ImportError as e:
     print(f"Error: Required scripts not found in scripts/: {e}", file=sys.stderr)
     sys.exit(1)
@@ -59,7 +59,9 @@ def _head_check(url: str, timeout: int = 15) -> dict:
         Dict with status_code, exists (bool), redirect_url (if redirected).
     """
     try:
-        resp = requests.head(
+        url = validate_public_url(url)
+        session = build_session()
+        resp = session.head(
             url,
             timeout=timeout,
             allow_redirects=True,
@@ -73,7 +75,7 @@ def _head_check(url: str, timeout: int = 15) -> dict:
         }
     except requests.exceptions.Timeout:
         return {"status_code": None, "exists": False, "redirect_url": None, "error": "timeout"}
-    except requests.exceptions.RequestException as e:
+    except (requests.exceptions.RequestException, ValueError) as e:
         return {"status_code": None, "exists": False, "redirect_url": None, "error": str(e)}
 
 
@@ -111,9 +113,12 @@ def verify_single_backlink(source_url: str, target_url: str,
     }
 
     # SSRF protection
-    if not validate_url(source_url):
+    try:
+        source_url = validate_public_url(source_url)
+        target_url = validate_public_url(target_url)
+    except ValueError as exc:
         result["status"] = "error"
-        result["error"] = "Source URL blocked by SSRF protection"
+        result["error"] = f"URL blocked by SSRF protection: {exc}"
         return result
 
     source_domain = urlparse(source_url).netloc
@@ -311,7 +316,9 @@ def main():
     args = parser.parse_args()
 
     # Validate target URL
-    if not validate_url(args.target):
+    try:
+        args.target = validate_public_url(args.target)
+    except ValueError:
         result = {
             "status": "error",
             "data": None,

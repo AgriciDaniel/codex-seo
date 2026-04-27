@@ -15,9 +15,13 @@ import json
 import sys
 from pathlib import Path
 from typing import Any
-from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+
+try:
+    from seo_pipeline_utils import build_session, validate_public_url
+except Exception:  # noqa: BLE001
+    build_session = None
+    validate_public_url = None
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -91,15 +95,16 @@ def check_writable(path: Path) -> dict[str, Any]:
 
 def check_target(url: str) -> dict[str, Any]:
     """Check connectivity to a target URL."""
-    normalized = normalize_url(url)
+    normalized = url
     try:
-        request = Request(normalized, headers={"User-Agent": DEFAULT_USER_AGENT})
-        with urlopen(request, timeout=20) as response:
-            status_code = getattr(response, "status", response.getcode())
-            return {"ok": status_code < 400, "url": response.geturl(), "status_code": status_code}
-    except HTTPError as exc:
-        return {"ok": False, "url": normalized, "status_code": exc.code, "error": str(exc)}
-    except (URLError, ValueError) as exc:
+        normalized = validate_public_url(url) if validate_public_url else normalize_url(url)
+        if not build_session:
+            return {"ok": False, "url": normalized, "error": "Public URL validation helpers are unavailable."}
+        response = build_session().get(normalized, timeout=20, allow_redirects=True)
+        return {"ok": response.status_code < 400, "url": response.url, "status_code": response.status_code}
+    except ValueError as exc:
+        return {"ok": False, "url": normalized, "error": str(exc)}
+    except Exception as exc:  # noqa: BLE001
         return {"ok": False, "url": normalized, "error": str(exc)}
 
 

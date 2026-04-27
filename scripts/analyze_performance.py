@@ -17,7 +17,7 @@ from typing import Any
 import requests
 
 from parse_html import parse_html
-from seo_pipeline_utils import DEFAULT_TIMEOUT, build_session, normalize_url, now_iso, url_slug
+from seo_pipeline_utils import DEFAULT_TIMEOUT, build_session, now_iso, url_slug, validate_public_url
 
 
 PAGESPEED_ENDPOINT = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
@@ -108,7 +108,7 @@ def fetch_pagespeed(url: str, strategy: str) -> dict[str, Any] | None:
 
 def analyze_performance(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict[str, Any]:
     """Analyze performance for a page and return JSON-serializable results."""
-    normalized_url = normalize_url(url)
+    normalized_url = validate_public_url(url)
     session = build_session()
 
     start = time.perf_counter()

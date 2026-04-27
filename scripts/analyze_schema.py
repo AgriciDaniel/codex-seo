@@ -16,7 +16,7 @@ from typing import Any
 from bs4 import BeautifulSoup
 
 from parse_html import parse_html
-from seo_pipeline_utils import DEFAULT_TIMEOUT, build_session, load_json_if_present, normalize_url, now_iso, page_type_for, url_slug
+from seo_pipeline_utils import DEFAULT_TIMEOUT, build_session, load_json_if_present, now_iso, page_type_for, url_slug, validate_public_url
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -138,7 +138,7 @@ def basic_generated_schema(url: str, page_type: str, parse_data: dict[str, Any],
 
 def analyze_schema(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict[str, Any]:
     """Analyze structured data for a page."""
-    normalized_url = normalize_url(url)
+    normalized_url = validate_public_url(url)
     session = build_session()
     response = session.get(normalized_url, timeout=timeout, allow_redirects=True)
 

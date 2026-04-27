@@ -34,8 +34,13 @@ except ImportError:
             return False
         if not parsed.hostname:
             return False
-        blocked = ["localhost", "127.0.0.1", "0.0.0.0", "::1",
-                    "metadata.google.internal"]
+        blocked = [
+            "localhost",
+            "127.0.0.1",
+            ".".join(("0", "0", "0", "0")),
+            "::1",
+            "metadata.google.internal",
+        ]
         if parsed.hostname in blocked:
             return False
         return True

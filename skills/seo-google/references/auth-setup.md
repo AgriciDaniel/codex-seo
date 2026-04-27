@@ -51,7 +51,7 @@ The JSON file looks like:
   "type": "service_account",
   "project_id": "your-project-id",
   "private_key_id": "...",
-  "private_key": "[redacted private key marker]\n...\n[redacted private key marker]\n",
+  "private_key": "[redacted service-account private key]",
   "client_email": "codex-seo@your-project.iam.gserviceaccount.com",
   "client_id": "...",
   "auth_uri": "https://accounts.google.com/o/oauth2/auth",

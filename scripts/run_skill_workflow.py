@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -32,9 +33,9 @@ from seo_pipeline_utils import (
     build_session,
     domain_slug,
     ensure_cache_gitignore,
-    normalize_url,
     now_iso,
     url_slug,
+    validate_public_url,
     write_json,
 )
 from verify_environment import verify_environment
@@ -187,7 +188,7 @@ def run_capability_summary(
 
 def run_specialist(skill: str, target: str, output_root: Path | None = None) -> dict[str, Any]:
     """Run a specialist skill and write deterministic artifacts."""
-    target = normalize_url(target)
+    target = validate_public_url(target)
     output_dir = output_dir_for(skill, target, output_root=output_root)
     page_cache = ROOT / ".seo-cache" / "pages" / url_slug(target)
     root_cache = ROOT / ".seo-cache"
@@ -496,7 +497,7 @@ def run_specialist(skill: str, target: str, output_root: Path | None = None) -> 
     raise ValueError(f"Unsupported skill: {skill}")
 
 
-def main() -> None:
+def main() -> int:
     """CLI entry point."""
     parser = argparse.ArgumentParser(description="Run a Codex SEO skill deterministically")
     parser.add_argument("--skill", required=True, help="Skill name, such as seo-content or seo-page")
@@ -506,18 +507,27 @@ def main() -> None:
     args = parser.parse_args()
 
     output_root = Path(args.output_root).resolve() if args.output_root else None
-    result = run_specialist(args.skill, args.target, output_root=output_root)
+    try:
+        result = run_specialist(args.skill, args.target, output_root=output_root)
+    except ValueError as exc:
+        payload = {"ok": False, "skill": args.skill, "target": args.target, "error": str(exc)}
+        if args.json:
+            print(json.dumps(payload, indent=2))
+        else:
+            print(f"Error: {exc}", file=sys.stderr)
+        return 2
 
     if args.json:
         print(json.dumps(result, indent=2))
-        return
+        return 0
 
     print(f"Skill: {result['skill']}")
     print(f"Target: {result['target']}")
     print(f"Output directory: {result['output_dir']}")
     for key, value in result["artifacts"].items():
         print(f"- {key}: {value}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

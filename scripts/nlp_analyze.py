@@ -23,11 +23,17 @@ except ImportError:
     sys.exit(1)
 
 try:
-    from google_auth import get_api_key, validate_url
+    from google_auth import get_api_key
 except ImportError:
     import os
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from google_auth import get_api_key, validate_url
+    from google_auth import get_api_key
+
+try:
+    from seo_pipeline_utils import build_session, validate_public_url
+except ImportError:
+    build_session = None
+    validate_public_url = None
 
 NLP_ENDPOINT = "https://language.googleapis.com/v2/documents:annotateText"
 
@@ -202,17 +208,22 @@ def analyze_url(
     Returns:
         Dictionary with NLP analysis results.
     """
-    if not validate_url(url):
+    if not validate_public_url or not build_session:
+        return {"error": "Public URL validation helpers are unavailable."}
+    try:
+        url = validate_public_url(url)
+    except ValueError:
         return {"error": "Invalid URL. Only http/https URLs to public hosts are accepted."}
 
     # Fetch the page text
     try:
-        resp = requests.get(url, timeout=30, headers={
+        session = build_session()
+        resp = session.get(url, timeout=30, headers={
             "User-Agent": "Mozilla/5.0 (compatible; CodexSEO/1.7 NLP Analyzer)"
         })
         resp.raise_for_status()
         html = resp.text
-    except requests.exceptions.RequestException as e:
+    except (requests.exceptions.RequestException, ValueError) as e:
         return {"error": f"Could not fetch URL: {e}"}
 
     # Extract text from HTML (simple approach)

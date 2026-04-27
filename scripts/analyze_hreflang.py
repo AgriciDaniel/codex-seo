@@ -14,10 +14,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
-import xml.etree.ElementTree as ET
 
 import requests
 from bs4 import BeautifulSoup
+import defusedxml.ElementTree as ET
+
+from seo_pipeline_utils import build_session, validate_public_site_root
 
 
 DEFAULT_TIMEOUT = 20
@@ -41,15 +43,7 @@ def now_iso() -> str:
 
 def normalize_site_url(target: str) -> str:
     """Normalize a target URL to a site root."""
-    parsed = urlparse(target)
-    if not parsed.scheme:
-        target = f"https://{target}"
-        parsed = urlparse(target)
-    if parsed.scheme not in {"http", "https"}:
-        raise ValueError(f"Invalid URL scheme: {parsed.scheme}")
-    if not parsed.netloc:
-        raise ValueError("Invalid URL: missing hostname")
-    return f"{parsed.scheme}://{parsed.netloc}"
+    return validate_public_site_root(target)
 
 
 def load_json(path: Path) -> dict[str, Any] | None:
@@ -70,7 +64,7 @@ def fetch(session: requests.Session, url: str, timeout: int) -> tuple[requests.R
             headers={"User-Agent": "Mozilla/5.0 Codex-SEO-QA"},
         )
         return response, None
-    except requests.RequestException as exc:
+    except (requests.RequestException, ValueError) as exc:
         return None, str(exc)
 
 
@@ -172,7 +166,7 @@ def analyze_hreflang(target: str, timeout: int = DEFAULT_TIMEOUT) -> dict[str, A
     domain = urlparse(site_root).netloc
     site_meta = load_json(CACHE_ROOT / "site-meta.json") or {}
 
-    session = requests.Session()
+    session = build_session()
     sample_urls = sitemap_urls(site_root, session, timeout)
     if not sample_urls:
         sample_urls = [site_root]

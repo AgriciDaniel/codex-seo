@@ -18,6 +18,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from parse_html import parse_html
+from seo_pipeline_utils import build_session, validate_public_url
 
 
 DEFAULT_TIMEOUT = 20
@@ -57,9 +58,10 @@ def slugify_path(url: str) -> str:
 def fetch_text(url: str, timeout: int) -> tuple[requests.Response | None, str | None]:
     """Fetch a URL and return (response, error)."""
     try:
-        response = requests.get(url, timeout=timeout, allow_redirects=True, headers={"User-Agent": "Mozilla/5.0 Codex-SEO-QA"})
+        session = build_session()
+        response = session.get(url, timeout=timeout, allow_redirects=True, headers={"User-Agent": "Mozilla/5.0 Codex-SEO-QA"})
         return response, None
-    except requests.RequestException as exc:
+    except (requests.RequestException, ValueError) as exc:
         return None, str(exc)
 
 
@@ -175,7 +177,22 @@ def passage_citability(soup: BeautifulSoup) -> dict[str, Any]:
 
 def analyze_geo(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict[str, Any]:
     """Analyze GEO readiness for a URL."""
-    normalized_url = normalize_url(url)
+    try:
+        normalized_url = validate_public_url(url)
+    except ValueError as exc:
+        normalized_url = normalize_url(url)
+        return {
+            "cache_type": "geo",
+            "analyzed_at": now_iso(),
+            "url": normalized_url,
+            "url_slug": slugify_path(normalized_url),
+            "score": 0,
+            "ai_crawler_access": "blocked",
+            "local_signals": [],
+            "issues": [str(exc)],
+            "platform_breakdown": {},
+            "recommendations": ["Use a public, reachable HTTP(S) URL before running GEO analysis."],
+        }
     parsed = urlparse(normalized_url)
     site_root = f"{parsed.scheme}://{parsed.netloc}"
     slug = slugify_path(normalized_url)
@@ -191,6 +208,8 @@ def analyze_geo(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict[str, Any]:
             "ai_crawler_access": "blocked",
             "local_signals": [],
             "issues": [page_error or "Could not fetch page"],
+            "platform_breakdown": {},
+            "recommendations": ["Retry with a public, reachable HTTP(S) URL before using this GEO result."],
         }
 
     robots_response, _ = fetch_text(f"{site_root}/robots.txt", timeout)

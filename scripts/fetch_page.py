@@ -11,7 +11,6 @@ import argparse
 import json
 import sys
 from typing import Optional
-from urllib.parse import urlparse
 
 try:
     import requests
@@ -20,8 +19,9 @@ except ImportError:
     sys.exit(1)
 
 try:
-    from seo_pipeline_utils import validate_public_url
+    from seo_pipeline_utils import build_session, validate_public_url
 except ImportError:
+    build_session = None
     validate_public_url = None
 
 
@@ -83,22 +83,16 @@ def fetch_page(
     }
 
     try:
-        if validate_public_url:
-            url = validate_public_url(url)
-        else:
-            parsed = urlparse(url)
-            if not parsed.scheme:
-                url = f"https://{url}"
-                parsed = urlparse(url)
-            if parsed.scheme not in ("http", "https") or not parsed.hostname:
-                result["error"] = "Invalid URL. Only public http/https URLs are accepted."
-                return result
+        if not validate_public_url or not build_session:
+            result["error"] = "Public URL validation helpers are unavailable."
+            return result
+        url = validate_public_url(url)
     except ValueError as exc:
         result["error"] = str(exc)
         return result
 
     try:
-        session = requests.Session()
+        session = build_session()
         session.max_redirects = max_redirects
 
         headers = dict(DEFAULT_HEADERS)

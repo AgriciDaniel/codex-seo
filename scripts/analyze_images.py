@@ -16,7 +16,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from parse_html import parse_html
-from seo_pipeline_utils import DEFAULT_TIMEOUT, build_session, normalize_url, now_iso, url_slug
+from seo_pipeline_utils import DEFAULT_TIMEOUT, build_session, now_iso, url_slug, validate_public_url
 
 
 LEGACY_FORMATS = {".jpg", ".jpeg", ".png", ".gif"}
@@ -52,7 +52,7 @@ def fetch_image_metadata(session: Any, image_url: str, timeout: int) -> tuple[in
 
 def analyze_images(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict[str, Any]:
     """Analyze image optimization signals for a page."""
-    normalized_url = normalize_url(url)
+    normalized_url = validate_public_url(url)
     session = build_session()
     response = session.get(normalized_url, timeout=timeout, allow_redirects=True)
 

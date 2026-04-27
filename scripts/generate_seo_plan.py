@@ -14,9 +14,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
-import xml.etree.ElementTree as ET
 
 import requests
+import defusedxml.ElementTree as ET
+
+from seo_pipeline_utils import build_session, validate_public_url
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -46,15 +48,7 @@ def now_iso() -> str:
 
 def normalize_url(target: str) -> str:
     """Normalize a URL for planning."""
-    parsed = urlparse(target)
-    if not parsed.scheme:
-        target = f"https://{target}"
-        parsed = urlparse(target)
-    if parsed.scheme not in {"http", "https"}:
-        raise ValueError(f"Invalid URL scheme: {parsed.scheme}")
-    if not parsed.netloc:
-        raise ValueError("Invalid URL: missing hostname")
-    return target
+    return validate_public_url(target)
 
 
 def load_json_if_present(path: Path) -> dict[str, Any] | None:
@@ -68,7 +62,8 @@ def load_json_if_present(path: Path) -> dict[str, Any] | None:
 def discover_site_pages(site_root: str) -> list[str]:
     """Fetch sitemap.xml and return page paths."""
     try:
-        response = requests.get(f"{site_root}/sitemap.xml", timeout=20, headers={"User-Agent": "Mozilla/5.0 Codex-SEO-QA"})
+        session = build_session()
+        response = session.get(f"{site_root}/sitemap.xml", timeout=20, headers={"User-Agent": "Mozilla/5.0 Codex-SEO-QA"})
         if response.status_code != 200:
             return []
         root = ET.fromstring(response.text)
@@ -82,7 +77,7 @@ def discover_site_pages(site_root: str) -> list[str]:
                 path = parsed.path or "/"
                 paths.append(path)
         return paths
-    except (requests.RequestException, ET.ParseError):
+    except (requests.RequestException, ET.ParseError, ValueError):
         return []
 
 

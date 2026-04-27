@@ -23,6 +23,7 @@ from bs4 import BeautifulSoup
 from analyze_sitemap import build_report as build_sitemap_report
 from analyze_sitemap import collect_sitemap_urls
 from parse_html import parse_html
+from seo_pipeline_utils import build_session, validate_public_site_root
 
 
 DEFAULT_TIMEOUT = 20
@@ -37,15 +38,7 @@ def now_iso() -> str:
 
 def normalize_site_url(target: str) -> str:
     """Normalize a domain or URL to a site root."""
-    parsed = urlparse(target)
-    if not parsed.scheme:
-        target = f"https://{target}"
-        parsed = urlparse(target)
-    if parsed.scheme not in {"http", "https"}:
-        raise ValueError(f"Invalid URL scheme: {parsed.scheme}")
-    if not parsed.netloc:
-        raise ValueError("Invalid URL: missing hostname")
-    return f"{parsed.scheme}://{parsed.netloc}"
+    return validate_public_site_root(target)
 
 
 def load_json(path: Path) -> dict[str, Any] | None:
@@ -151,7 +144,7 @@ def fetch_page_profile(session: requests.Session, url: str, timeout: int) -> dic
             allow_redirects=True,
             headers={"User-Agent": "Mozilla/5.0 Codex-SEO-QA"},
         )
-    except requests.RequestException as exc:
+    except (requests.RequestException, ValueError) as exc:
         result["error"] = str(exc)
         return result
 
@@ -240,7 +233,7 @@ def analyze_programmatic(target: str, timeout: int = DEFAULT_TIMEOUT) -> dict[st
         sitemap_data = build_sitemap_report(site_root, timeout=timeout, check_limit=500)
         cache_used = False
 
-    session = requests.Session()
+    session = build_session()
     urls: list[str] = []
     if sitemap_data.get("sitemap_urls"):
         try:

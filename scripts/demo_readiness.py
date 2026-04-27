@@ -21,7 +21,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from urllib import error, parse, request
+
+import requests
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -133,21 +134,23 @@ def dataforseo_user_data(settings: dict[str, Any]) -> dict[str, Any]:
     if not user or not password:
         return {"ok": False, "error": "missing DataForSEO credentials"}
 
-    req = request.Request("https://api.dataforseo.com/v3/appendix/user_data")
     token = base64.b64encode(f"{user}:{password}".encode()).decode()
-    req.add_header("Authorization", f"Basic {token}")
     try:
-        with request.urlopen(req, timeout=30) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
-    except error.HTTPError as exc:
-        return {"ok": False, "http_status": exc.code, "error": "HTTPError"}
-    except Exception as exc:  # noqa: BLE001
+        response = requests.get(
+            "https://api.dataforseo.com/v3/appendix/user_data",
+            headers={"Authorization": f"Basic {token}"},
+            timeout=30,
+        )
+        if response.status_code >= 400:
+            return {"ok": False, "http_status": response.status_code, "error": "HTTPError"}
+        body = response.json()
+    except (requests.RequestException, ValueError) as exc:
         return {"ok": False, "error": type(exc).__name__}
 
     task = (body.get("tasks") or [{}])[0]
     return {
         "ok": body.get("status_code") == 20000 and task.get("status_code") == 20000,
-        "http_status": resp.status,
+        "http_status": response.status_code,
         "status_code": body.get("status_code"),
         "status_message": body.get("status_message"),
         "tasks_count": body.get("tasks_count"),
@@ -162,19 +165,22 @@ def gemini_models(settings: dict[str, Any]) -> dict[str, Any]:
     if not key:
         return {"ok": False, "error": "missing GOOGLE_AI_API_KEY"}
 
-    url = "https://generativelanguage.googleapis.com/v1beta/models?" + parse.urlencode({"key": key})
     try:
-        with request.urlopen(url, timeout=30) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
-    except error.HTTPError as exc:
-        return {"ok": False, "http_status": exc.code, "error": "HTTPError"}
-    except Exception as exc:  # noqa: BLE001
+        response = requests.get(
+            "https://generativelanguage.googleapis.com/v1beta/models",
+            params={"key": key},
+            timeout=30,
+        )
+        if response.status_code >= 400:
+            return {"ok": False, "http_status": response.status_code, "error": "HTTPError"}
+        body = response.json()
+    except (requests.RequestException, ValueError) as exc:
         return {"ok": False, "error": type(exc).__name__}
 
     models = body.get("models", [])
     return {
-        "ok": resp.status == 200 and bool(models),
-        "http_status": resp.status,
+        "ok": response.status_code == 200 and bool(models),
+        "http_status": response.status_code,
         "model_count": len(models),
         "sample_models": [item.get("name") for item in models[:5]],
     }
@@ -213,19 +219,21 @@ def dataforseo_live_serp(settings: dict[str, Any], keyword: str) -> dict[str, An
         "device": "desktop",
         "depth": 10,
     }]
-    req = request.Request(
-        "https://api.dataforseo.com/v3/serp/google/organic/live/advanced",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    req.add_header("Authorization", "Basic " + base64.b64encode(f"{user}:{password}".encode()).decode())
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": "Basic " + base64.b64encode(f"{user}:{password}".encode()).decode(),
+    }
     try:
-        with request.urlopen(req, timeout=60) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
-    except error.HTTPError as exc:
-        return {"ok": False, "cost_check": cost, "http_status": exc.code, "error": "HTTPError"}
-    except Exception as exc:  # noqa: BLE001
+        response = requests.post(
+            "https://api.dataforseo.com/v3/serp/google/organic/live/advanced",
+            json=payload,
+            headers=headers,
+            timeout=60,
+        )
+        if response.status_code >= 400:
+            return {"ok": False, "cost_check": cost, "http_status": response.status_code, "error": "HTTPError"}
+        body = response.json()
+    except (requests.RequestException, ValueError) as exc:
         return {"ok": False, "cost_check": cost, "error": type(exc).__name__}
 
     task = (body.get("tasks") or [{}])[0]
@@ -238,7 +246,7 @@ def dataforseo_live_serp(settings: dict[str, Any], keyword: str) -> dict[str, An
     return {
         "ok": body.get("status_code") == 20000 and task.get("status_code") == 20000,
         "cost_check": cost,
-        "http_status": resp.status,
+        "http_status": response.status_code,
         "status_code": body.get("status_code"),
         "status_message": body.get("status_message"),
         "cost": actual_cost,

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -32,10 +33,10 @@ from seo_pipeline_utils import (
     extract_language_country,
     extract_visible_text,
     normalize_site_root,
-    normalize_url,
     now_iso,
     severity_for_issue,
     url_slug,
+    validate_public_url,
     write_json,
 )
 from verify_environment import verify_environment
@@ -585,7 +586,7 @@ def run_audit_with_output_root(
 ) -> dict[str, Any]:
     """Execute the deterministic full-audit pipeline with an optional output root override."""
     verification = verify_environment(target=target)
-    normalized = normalize_url(target)
+    normalized = validate_public_url(target)
     site_root = normalize_site_root(normalized)
     session = build_session()
     response = session.get(site_root, timeout=timeout, allow_redirects=True)
@@ -764,7 +765,7 @@ def run_audit_with_output_root(
     }
 
 
-def main() -> None:
+def main() -> int:
     """CLI entry point."""
     parser = argparse.ArgumentParser(description="Run the deterministic Codex SEO full audit pipeline")
     parser.add_argument("target", help="Target site URL or domain")
@@ -780,16 +781,24 @@ def main() -> None:
     parser.add_argument("--json", "-j", action="store_true", help="Output JSON")
     args = parser.parse_args()
 
-    result = run_audit_with_output_root(
-        args.target,
-        timeout=args.timeout,
-        premium_report=args.premium_report,
-        output_root=Path(args.output_root).resolve() if args.output_root else None,
-        data_only=args.data_only,
-    )
+    try:
+        result = run_audit_with_output_root(
+            args.target,
+            timeout=args.timeout,
+            premium_report=args.premium_report,
+            output_root=Path(args.output_root).resolve() if args.output_root else None,
+            data_only=args.data_only,
+        )
+    except ValueError as exc:
+        payload = {"ok": False, "target": args.target, "error": str(exc)}
+        if args.json:
+            print(json.dumps(payload, indent=2))
+        else:
+            print(f"Error: {exc}", file=sys.stderr)
+        return 2
     if args.json:
         print(json.dumps(result, indent=2))
-        return
+        return 0
 
     print("Headless SEO Audit")
     print("=" * 40)
@@ -801,7 +810,8 @@ def main() -> None:
         if not value:
             continue
         print(f"- {key}: {value}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

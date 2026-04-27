@@ -21,6 +21,9 @@ import os
 import sys
 import time
 from typing import Optional
+from urllib.parse import urlparse
+
+import requests
 
 CONFIG_PATH = os.path.expanduser("~/.config/codex-seo/google-api.json")
 TOKEN_PATH = os.path.expanduser("~/.config/codex-seo/oauth-token.json")
@@ -189,25 +192,31 @@ def _save_oauth_token(token_data: dict):
         json.dump(token_data, f, indent=2)
 
 
+def _google_token_uri(client: dict) -> str:
+    """Return a validated Google OAuth token endpoint."""
+    token_uri = client.get("token_uri") or "https://oauth2.googleapis.com/token"
+    parsed = urlparse(token_uri)
+    if parsed.scheme != "https" or parsed.netloc != "oauth2.googleapis.com" or parsed.path != "/token":
+        raise ValueError(f"Unsupported OAuth token endpoint: {token_uri}")
+    return token_uri
+
+
 def _refresh_oauth_token(client: dict, token_data: dict) -> Optional[dict]:
     """Refresh an expired OAuth token using the refresh_token."""
-    import urllib.parse
-    import urllib.request
-
     if not token_data.get("refresh_token"):
         return None
 
-    params = urllib.parse.urlencode({
+    params = {
         "client_id": client["client_id"],
         "client_secret": client["client_secret"],
         "refresh_token": token_data["refresh_token"],
         "grant_type": "refresh_token",
-    }).encode()
+    }
 
     try:
-        req = urllib.request.Request(client.get("token_uri", "https://oauth2.googleapis.com/token"), data=params)
-        with urllib.request.urlopen(req) as resp:
-            new_data = json.loads(resp.read())
+        response = requests.post(_google_token_uri(client), data=params, timeout=30)
+        response.raise_for_status()
+        new_data = response.json()
         token_data["access_token"] = new_data["access_token"]
         token_data["expires_at"] = time.time() + new_data.get("expires_in", 3600)
         _save_oauth_token(token_data)
@@ -342,23 +351,18 @@ def run_oauth_flow(creds_path: str):
 
 def _exchange_code(client: dict, code: str):
     """Exchange an authorization code for tokens."""
-    import urllib.parse
-    import urllib.request
-
-    params = urllib.parse.urlencode({
+    params = {
         "code": code,
         "client_id": client["client_id"],
         "client_secret": client["client_secret"],
         "redirect_uri": OAUTH_REDIRECT_URI,
         "grant_type": "authorization_code",
-    }).encode()
+    }
 
     try:
-        req = urllib.request.Request(
-            client.get("token_uri", "https://oauth2.googleapis.com/token"), data=params
-        )
-        with urllib.request.urlopen(req) as resp:
-            token_data = json.loads(resp.read())
+        response = requests.post(_google_token_uri(client), data=params, timeout=30)
+        response.raise_for_status()
+        token_data = response.json()
         token_data["expires_at"] = time.time() + token_data.get("expires_in", 3600)
         token_data["client_id"] = client["client_id"]
         # SECURITY: Never store client_secret in token file. It stays in client_secret.json only.

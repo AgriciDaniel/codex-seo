@@ -20,8 +20,9 @@ except ImportError as exc:
     PLAYWRIGHT_IMPORT_ERROR = exc
 
 try:
-    from seo_pipeline_utils import validate_public_url
+    from seo_pipeline_utils import install_playwright_public_url_guard, validate_public_url
 except ImportError:
+    install_playwright_public_url_guard = None
     validate_public_url = None
 
 
@@ -99,6 +100,8 @@ def analyze_visual(url: str, timeout: int = 30000) -> dict:
             # Desktop analysis
             desktop = browser.new_context(viewport={"width": 1920, "height": 1080})
             page = desktop.new_page()
+            if install_playwright_public_url_guard:
+                install_playwright_public_url_guard(page)
             page.goto(url, wait_until="networkidle", timeout=timeout)
 
             # Check H1 visibility above fold
@@ -153,6 +156,8 @@ def analyze_visual(url: str, timeout: int = 30000) -> dict:
             # Mobile analysis
             mobile = browser.new_context(viewport={"width": 375, "height": 812})
             page = mobile.new_page()
+            if install_playwright_public_url_guard:
+                install_playwright_public_url_guard(page)
             page.goto(url, wait_until="networkidle", timeout=timeout)
 
             # Check viewport meta

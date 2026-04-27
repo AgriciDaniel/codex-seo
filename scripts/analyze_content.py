@@ -19,6 +19,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from parse_html import parse_html
+from seo_pipeline_utils import build_session, validate_public_url
 
 
 DEFAULT_TIMEOUT = 20
@@ -56,14 +57,15 @@ def slugify_path(url: str) -> str:
 def fetch_html(url: str, timeout: int) -> tuple[requests.Response | None, str | None]:
     """Fetch HTML and return (response, error)."""
     try:
-        response = requests.get(
+        session = build_session()
+        response = session.get(
             url,
             timeout=timeout,
             allow_redirects=True,
             headers={"User-Agent": "Mozilla/5.0 Codex-SEO-QA"},
         )
         return response, None
-    except requests.RequestException as exc:
+    except (requests.RequestException, ValueError) as exc:
         return None, str(exc)
 
 
@@ -137,7 +139,22 @@ def classify_ai_readiness(value: int) -> str:
 
 def analyze_content(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict[str, Any]:
     """Run content analysis and return JSON-serializable findings."""
-    normalized_url = normalize_url(url)
+    try:
+        normalized_url = validate_public_url(url)
+    except ValueError as exc:
+        normalized_url = normalize_url(url)
+        return {
+            "cache_type": "content",
+            "analyzed_at": now_iso(),
+            "url": normalized_url,
+            "url_slug": slugify_path(normalized_url),
+            "score": 0,
+            "eeat_summary": "Page could not be fetched for analysis.",
+            "ai_citation_readiness": "weak",
+            "issues": [str(exc)],
+            "recommendations": ["Use a public, reachable HTTP(S) URL before running content analysis."],
+            "error": str(exc),
+        }
     response, error = fetch_html(normalized_url, timeout)
     if error or response is None:
         return {
@@ -149,6 +166,7 @@ def analyze_content(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict[str, Any]:
             "eeat_summary": "Page could not be fetched for analysis.",
             "ai_citation_readiness": "weak",
             "issues": [error or "Unknown fetch error"],
+            "recommendations": ["Retry with a public, reachable HTTP(S) URL before using this content result."],
             "error": error or "Unknown fetch error",
         }
 
@@ -163,6 +181,7 @@ def analyze_content(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict[str, Any]:
             "eeat_summary": "Content is not HTML and could not be analyzed as a standard web page.",
             "ai_citation_readiness": "weak",
             "issues": [f"Unsupported content type: {content_type}"],
+            "recommendations": ["Analyze an HTML page, or use a file/content-specific workflow for non-HTML assets."],
             "error": None,
         }
 

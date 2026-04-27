@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shlex
 import subprocess
 from typing import Any
 
@@ -62,9 +63,31 @@ def extract_function_call(response_json: dict[str, Any]) -> dict[str, Any] | Non
     return None
 
 
-def run_local_command(command: str) -> dict[str, Any]:
-    """Execute a local command for tool-loop probing."""
-    completed = subprocess.run(command, shell=True, capture_output=True, text=True)
+def command_argv(command: str) -> list[str]:
+    """Parse a command into argv for shell-free execution."""
+    argv = shlex.split(command)
+    if not argv:
+        raise ValueError("Command is empty.")
+    return argv
+
+
+def run_local_command(command: str, expected_command: str | None = None) -> dict[str, Any]:
+    """Execute a local command for tool-loop probing without a shell."""
+    try:
+        argv = command_argv(command)
+        if expected_command is not None and argv != command_argv(expected_command):
+            raise ValueError("Emitted command did not match the expected command exactly.")
+    except ValueError as exc:
+        return {
+            "command": command,
+            "returncode": None,
+            "stdout": "",
+            "stderr": "",
+            "ok": False,
+            "error": f"Blocked unsafe command: {exc}",
+        }
+
+    completed = subprocess.run(argv, shell=False, capture_output=True, text=True, timeout=120)
     return {
         "command": command,
         "returncode": completed.returncode,
@@ -193,7 +216,7 @@ def probe_provider(
         return summary
 
     loop_command_actual = json.loads(loop_call["arguments"])["command"]
-    local_execution = run_local_command(loop_command_actual)
+    local_execution = run_local_command(loop_command_actual, expected_command=loop_command)
     loop_step2_payload = {
         "model": model,
         "previous_response_id": loop_step1_response.get("id"),
@@ -223,6 +246,7 @@ def probe_provider(
             "returncode": local_execution["returncode"],
             "stdout": local_execution["stdout"],
             "stderr": local_execution["stderr"],
+            "error": local_execution.get("error"),
         },
         "final_output_text": loop_text,
         "step2_response": loop_step2_response,

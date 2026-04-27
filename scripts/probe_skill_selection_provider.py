@@ -12,11 +12,16 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shlex
 import subprocess
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import requests
+
+from seo_pipeline_utils import validate_public_url
 
 
 @dataclass(frozen=True)
@@ -36,6 +41,24 @@ DEFAULT_CASES = [
     ProbeCase("seo_plan", "Create an SEO strategy and roadmap for https://www.python.org", "seo-plan"),
     ProbeCase("seo_geo", "Assess AI search / GEO readiness for https://www.python.org", "seo-geo"),
 ]
+
+ALLOWED_SKILLS = {
+    "seo-audit",
+    "seo-competitor-pages",
+    "seo-content",
+    "seo-geo",
+    "seo-hreflang",
+    "seo-images",
+    "seo-page",
+    "seo-performance",
+    "seo-plan",
+    "seo-programmatic",
+    "seo-schema",
+    "seo-sitemap",
+    "seo-technical",
+    "seo-visual",
+}
+PYTHON_COMMANDS = {"python", "python3", "py", Path(sys.executable).name}
 
 
 def post_json(url: str, api_key: str, payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
@@ -91,9 +114,47 @@ def build_prompt(request: str) -> str:
     )
 
 
+def validate_repo_command(command: str) -> list[str]:
+    """Parse and allowlist a provider-selected deterministic repo command."""
+    argv = shlex.split(command)
+    if len(argv) < 4:
+        raise ValueError("Command is too short.")
+    if Path(argv[0]).name not in PYTHON_COMMANDS:
+        raise ValueError("Only Python repo entrypoints are allowed.")
+
+    script = argv[1].replace("\\", "/").lstrip("./")
+    if script == "scripts/run_skill_workflow.py":
+        if len(argv) != 6 or argv[2] != "--skill" or argv[5] != "--json":
+            raise ValueError("run_skill_workflow commands must match the documented JSON form.")
+        if argv[3] not in ALLOWED_SKILLS:
+            raise ValueError(f"Unsupported skill command: {argv[3]}")
+        argv[4] = validate_public_url(argv[4])
+        return argv
+
+    if script == "scripts/run_headless_audit.py":
+        if len(argv) != 4 or argv[3] != "--json":
+            raise ValueError("run_headless_audit commands must match the documented JSON form.")
+        argv[2] = validate_public_url(argv[2])
+        return argv
+
+    raise ValueError(f"Unsupported repo entrypoint: {script}")
+
+
 def run_local_command(command: str) -> dict[str, Any]:
-    """Execute the provider-selected command locally for validation."""
-    completed = subprocess.run(command, shell=True, capture_output=True, text=True)
+    """Execute an allowlisted provider-selected command locally for validation."""
+    try:
+        argv = validate_repo_command(command)
+    except ValueError as exc:
+        return {
+            "command": command,
+            "returncode": None,
+            "ok": False,
+            "error": f"Blocked unsafe command: {exc}",
+            "stdout_tail": "",
+            "stderr_tail": "",
+        }
+
+    completed = subprocess.run(argv, shell=False, capture_output=True, text=True, timeout=180)
     return {
         "command": command,
         "returncode": completed.returncode,

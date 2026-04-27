@@ -23,8 +23,9 @@ except ImportError as exc:
     PLAYWRIGHT_IMPORT_ERROR = exc
 
 try:
-    from seo_pipeline_utils import validate_public_url
+    from seo_pipeline_utils import install_playwright_public_url_guard, validate_public_url
 except ImportError:
+    install_playwright_public_url_guard = None
     validate_public_url = None
 
 
@@ -111,6 +112,8 @@ def capture_screenshot(
                 device_scale_factor=2 if viewport == "mobile" else 1,
             )
             page = context.new_page()
+            if install_playwright_public_url_guard:
+                install_playwright_public_url_guard(page)
 
             # Navigate and wait for network idle
             page.goto(url, wait_until="networkidle", timeout=timeout)

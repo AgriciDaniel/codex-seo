@@ -13,9 +13,11 @@ from collections import Counter
 from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlparse
-import xml.etree.ElementTree as ET
 
 import requests
+import defusedxml.ElementTree as ET
+
+from seo_pipeline_utils import build_session, validate_public_site_root, validate_public_url
 
 
 DEFAULT_TIMEOUT = 20
@@ -29,15 +31,7 @@ def now_iso() -> str:
 
 def normalize_site_url(target: str) -> str:
     """Normalize a website URL for robots and sitemap discovery."""
-    parsed = urlparse(target)
-    if not parsed.scheme:
-        target = f"https://{target}"
-        parsed = urlparse(target)
-    if parsed.scheme not in {"http", "https"}:
-        raise ValueError(f"Invalid URL scheme: {parsed.scheme}")
-    if not parsed.netloc:
-        raise ValueError("Invalid URL: missing hostname")
-    return f"{parsed.scheme}://{parsed.netloc}"
+    return validate_public_site_root(target)
 
 
 def slugify_path(url: str) -> str:
@@ -54,7 +48,7 @@ def fetch_text(session: requests.Session, url: str, timeout: int) -> tuple[int |
     try:
         response = session.get(url, timeout=timeout, headers={"User-Agent": "Mozilla/5.0 Codex-SEO-QA"})
         return response.status_code, response.text, None
-    except requests.RequestException as exc:
+    except (requests.RequestException, ValueError) as exc:
         return None, "", str(exc)
 
 
@@ -70,8 +64,8 @@ def fetch_robots_sitemaps(session: requests.Session, site_root: str, timeout: in
 
 def discover_sitemaps(session: requests.Session, target: str, timeout: int) -> tuple[str, list[str], bool, str | None]:
     """Resolve sitemap URLs from either a direct sitemap URL or a site URL."""
-    parsed = urlparse(target if "://" in target else f"https://{target}")
-    normalized_target = target if "://" in target else f"https://{target}"
+    normalized_target = validate_public_url(target)
+    parsed = urlparse(normalized_target)
     if parsed.path.lower().endswith(".xml"):
         site_root = f"{parsed.scheme}://{parsed.netloc}"
         robots_refs, robots_error = fetch_robots_sitemaps(session, site_root, timeout)
@@ -226,14 +220,14 @@ def inspect_url(session: requests.Session, url: str, timeout: int) -> dict[str, 
                 "noindex": noindex,
             }
         )
-    except requests.RequestException as exc:
+    except (requests.RequestException, ValueError) as exc:
         result["error"] = str(exc)
     return result
 
 
 def build_report(target: str, timeout: int, check_limit: int) -> dict[str, Any]:
     """Run the full sitemap analysis and return a JSON-serializable report."""
-    session = requests.Session()
+    session = build_session()
     site_root, discovered_sitemaps, robots_declares_sitemap, discovery_error = discover_sitemaps(session, target, timeout)
     domain = urlparse(site_root).netloc if site_root else urlparse(target).netloc
 
