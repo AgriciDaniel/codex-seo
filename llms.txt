@@ -9,6 +9,8 @@
 - Current version: 1.9.6+codex.1
 - Canonical skill entrypoint: skills/seo/SKILL.md
 - Plugin manifest: .codex-plugin/plugin.json
+- Credits: CREDITS.md
+- Initial Codex SEO conversion: https://github.com/avalonreset
 
 ## Install
 
@@ -19,6 +21,7 @@
 ## Core Docs
 
 - README.md
+- CREDITS.md
 - docs/COMMANDS.md
 - docs/INSTALLATION.md
 - docs/ARCHITECTURE.md

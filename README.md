@@ -34,6 +34,7 @@ It covers technical SEO, on-page analysis, content quality, E-E-A-T, schema mark
 - [Uninstall](#uninstall)
 - [Contributing](#contributing)
 - [Related Projects](#related-projects)
+- [Credits](#credits)
 - [Attribution](#attribution)
 
 ## Status
@@ -361,7 +362,7 @@ powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
 
 ## Contributing
 
-Use [CONTRIBUTING.md](CONTRIBUTING.md) for local setup and validation, [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for project standards, and [SECURITY.md](SECURITY.md) for vulnerability reporting. Agent-facing project context is also available in [llms.txt](llms.txt).
+Use [CONTRIBUTING.md](CONTRIBUTING.md) for local setup and validation, [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for project standards, [SECURITY.md](SECURITY.md) for vulnerability reporting, and [CREDITS.md](CREDITS.md) for project credits. Agent-facing project context is also available in [llms.txt](llms.txt).
 
 ## Related Projects
 
@@ -370,6 +371,10 @@ Use [CONTRIBUTING.md](CONTRIBUTING.md) for local setup and validation, [CODE_OF_
 - [`claude-ads`](https://github.com/AgriciDaniel/claude-ads) - paid advertising audit skill suite
 - [`flow`](https://github.com/AgriciDaniel/flow) - evidence-led SEO framework for AI search
 - [`wp-mcp-ultimate`](https://github.com/AgriciDaniel/wp-mcp-ultimate) - WordPress MCP server
+
+## Credits
+
+Special thanks to [avalonreset](https://github.com/avalonreset) for making the Codex conversion possible and for creating the initial Codex SEO version that this repository builds on.
 
 ## Attribution
 
