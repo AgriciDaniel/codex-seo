@@ -58,7 +58,9 @@ node_modules/
 *.tar.gz
 
 # Screenshots (generated during analysis)
-screenshots/
+screenshots/*
+!screenshots/
+!screenshots/cover-image.webp
 
 # Temporary analysis files
 *-AUDIT-REPORT.md
