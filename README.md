@@ -22,6 +22,7 @@ It covers technical SEO, on-page analysis, content quality, E-E-A-T, schema mark
 - [Status](#status)
 - [Install](#install)
 - [Quick Start](#quick-start)
+- [Visual Overview](#visual-overview)
 - [Commands](#commands)
 - [Features](#features)
 - [Extensions](#extensions)
@@ -126,6 +127,21 @@ Command-style prompts also work:
 /seo dataforseo serp "best seo tools"
 ```
 
+## Visual Overview
+
+Codex SEO is designed as a Codex-first routing layer: the user can ask naturally, the orchestrator selects the right specialist workflow, and deterministic runners write repeatable artifacts instead of relying on invisible chat-only output.
+
+```mermaid
+flowchart LR
+  user["User prompt<br/>natural language or /seo"] --> orchestrator["skills/seo/SKILL.md<br/>main orchestrator"]
+  orchestrator --> cache[".seo-cache<br/>shared evidence"]
+  orchestrator --> skills["26 specialist<br/>SEO workflows"]
+  skills --> agents["24 TOML agents<br/>parallel analysis slices"]
+  skills --> scripts["scripts/<br/>deterministic runners"]
+  scripts --> output["output/<br/>Markdown, JSON, HTML, PDF"]
+  cache --> skills
+```
+
 ## Commands
 
 | Prompt | Purpose |
@@ -169,6 +185,40 @@ Full command details live in [docs/COMMANDS.md](docs/COMMANDS.md).
 - Adds conditional specialists for local, maps, Google APIs, backlinks, clusters, SXO, drift, and e-commerce.
 - Writes markdown reports, JSON summaries, cache artifacts, and optional premium HTML/PDF output.
 
+```mermaid
+flowchart TD
+  request["Audit request"] --> detect["Detect site type<br/>business model and context"]
+  detect --> core["Core audit specialists"]
+  core --> technical["Technical"]
+  core --> content["Content"]
+  core --> schema["Schema"]
+  core --> sitemap["Sitemap"]
+  core --> geo["GEO / AI search"]
+  core --> images["Images"]
+  core --> performance["Performance"]
+  core --> visual["Visual"]
+  detect --> conditional["Conditional specialists"]
+  conditional --> local["Local / Maps"]
+  conditional --> backlinks["Backlinks"]
+  conditional --> google["Google APIs"]
+  conditional --> ecommerce["E-commerce"]
+  conditional --> drift["Drift"]
+  technical --> report["Unified SEO report"]
+  content --> report
+  schema --> report
+  sitemap --> report
+  geo --> report
+  images --> report
+  performance --> report
+  visual --> report
+  local --> report
+  backlinks --> report
+  google --> report
+  ecommerce --> report
+  drift --> report
+  report --> artifacts["SUMMARY.json<br/>FULL-AUDIT-REPORT.md<br/>ACTION-PLAN.md<br/>optional HTML/PDF"]
+```
+
 ### Technical SEO
 
 - Robots.txt, sitemap discovery, canonical checks, indexability, URL hygiene.
@@ -199,6 +249,20 @@ Full command details live in [docs/COMMANDS.md](docs/COMMANDS.md).
 - Compare deployments or page changes.
 - Track title, meta, headings, canonical, schema, robots, links, and content deltas.
 
+```mermaid
+sequenceDiagram
+  participant Before as Baseline
+  participant Runner as Drift runner
+  participant After as Current page
+  participant Cache as .seo-cache
+  participant Report as Drift report
+  Before->>Runner: Capture titles, metas, canonicals, schema, headings
+  Runner->>Cache: Store baseline snapshot
+  After->>Runner: Re-check current SEO signals
+  Cache->>Runner: Load prior snapshot
+  Runner->>Report: Write changed, missing, and regressed signals
+```
+
 ### Deterministic Runners
 
 - `scripts/run_skill_workflow.py` standardizes output for every user-invokable workflow.
@@ -213,6 +277,22 @@ Full command details live in [docs/COMMANDS.md](docs/COMMANDS.md).
 | Google APIs | `seo-google`, `seo-performance` | `python scripts/google_auth.py --setup` | PageSpeed, CrUX, GSC, URL Inspection, Indexing API, GA4 |
 | Firecrawl | `seo-firecrawl` | `./extensions/firecrawl/install.sh` | JS-rendered crawl, scrape, site map |
 | Banana / Gemini | `seo-image-gen` | `./extensions/banana/install.sh` | AI image generation through `nanobanana-mcp` |
+
+Optional integrations enrich the same workflow surface. If credentials or MCP servers are missing, wrappers return `setup_required` or `mcp_configured` states with no fabricated live data.
+
+```mermaid
+flowchart LR
+  codex["Codex SEO workflows"] --> local["Local evidence<br/>HTML, robots, sitemaps, screenshots"]
+  codex --> dfs["DataForSEO MCP<br/>SERP, keywords, backlinks, maps"]
+  codex --> google["Google APIs<br/>GSC, PageSpeed, CrUX, GA4"]
+  codex --> firecrawl["Firecrawl MCP<br/>JS crawl and site maps"]
+  codex --> banana["Gemini / nanobanana<br/>SEO image assets"]
+  local --> artifacts["Reports and .seo-cache"]
+  dfs --> artifacts
+  google --> artifacts
+  firecrawl --> artifacts
+  banana --> artifacts
+```
 
 Demo readiness:
 
@@ -256,7 +336,38 @@ python scripts/bootstrap_environment.py --venv .venv --json
 
 Artifacts are written to `output/`. Shared project cache is written to `.seo-cache/`. Both are ignored by git.
 
+```mermaid
+flowchart LR
+  cli["run_skill_workflow.py<br/>single workflow"] --> json["JSON result"]
+  cli --> markdown["Markdown report"]
+  cli --> cacheWrite[".seo-cache update"]
+  suite["run_api_smoke_suite.py<br/>all workflows"] --> json
+  suite --> outputRoot["output/api-smoke-*"]
+  verify["verify_environment.py"] --> readiness["ready / setup_required<br/>capability status"]
+  markdown --> outputRoot
+  json --> outputRoot
+  cacheWrite --> cache[".seo-cache"]
+```
+
 ## Architecture
+
+The repository separates Codex-facing instructions, deterministic runtime code, optional provider setup, and validation contracts. That keeps the skill system usable in chat, installable as a suite, and testable from CI/API workflows.
+
+```mermaid
+flowchart TB
+  manifest[".codex-plugin/plugin.json"] --> skillsRoot["skills/"]
+  skillsRoot --> orchestrator["seo/SKILL.md<br/>routing and orchestration"]
+  skillsRoot --> specialists["seo-*/SKILL.md<br/>specialist workflows"]
+  agentsDir["agents/seo-*.toml"] --> specialists
+  scriptsDir["scripts/<br/>deterministic runners"] --> specialists
+  extensionsDir["extensions/<br/>optional MCP setup"] --> specialists
+  references["skills/seo/references/<br/>thresholds and shared contracts"] --> specialists
+  specialists --> cacheDir[".seo-cache/<br/>cross-skill memory"]
+  specialists --> outputDir["output/<br/>reports and artifacts"]
+  testsDir["tests/<br/>contract and smoke coverage"] --> manifest
+  testsDir --> skillsRoot
+  testsDir --> scriptsDir
+```
 
 ```text
 codex-seo/
