@@ -12,10 +12,12 @@ Thanks for contributing.
 ## Local Setup
 
 ```bash
-git clone https://github.com/AgriciDaniel/codex-seo.git
+gh repo clone AgriciDaniel/codex-seo
 cd codex-seo
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
+
+If you are working from a public fork, a normal `git clone` of that fork is fine. Keep credentials, `.env` files, `.mcp.json`, `output/`, and `.seo-cache/` out of commits.
 
 ## Validation Before PR
 
@@ -26,6 +28,7 @@ bash -n install.sh
 bash -n uninstall.sh
 bash -n hooks/pre-commit-seo-check.sh
 python -m pytest tests/
+python -m compileall -q scripts hooks
 ```
 
 ## Pull Request Checklist

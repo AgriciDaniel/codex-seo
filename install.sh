@@ -81,7 +81,7 @@ main() {
 
     echo "[INFO] Downloading Codex SEO (${REPO_REF})..."
     if ! git clone --depth 1 --branch "${REPO_REF}" "${REPO_URL}" "${TEMP_DIR}/codex-seo" 2>/dev/null; then
-        echo "[ERROR] Unable to download ref ${REPO_REF}. Confirm the branch or tag exists and is publicly accessible."
+        echo "[ERROR] Unable to download ref ${REPO_REF}. Confirm the branch/tag exists and your Git credentials can access ${REPO_URL}."
         exit 1
     fi
 

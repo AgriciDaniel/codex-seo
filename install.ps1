@@ -158,7 +158,7 @@ try {
     Write-Host "[INFO] Downloading Codex SEO ($repoRef)..." -ForegroundColor Yellow
     $cloneResult = Invoke-External -Exe "git" -Args @("clone", "--depth", "1", "--branch", $repoRef, $repoUrl, $checkoutDir)
     if ($cloneResult.ExitCode -ne 0) {
-        throw "Git clone failed."
+        throw "Unable to download ref $repoRef. Confirm the branch/tag exists and your Git credentials can access $repoUrl."
     }
 
     $commitResult = Invoke-External -Exe "git" -Args @("-C", $checkoutDir, "rev-parse", "HEAD") -Quiet
