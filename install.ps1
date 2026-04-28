@@ -68,6 +68,46 @@ function Test-Truthy {
     return @("1", "true", "yes", "on") -contains $Value.Trim().ToLowerInvariant()
 }
 
+function Get-JsonObjectText {
+    param([string[]]$Output)
+
+    $text = ($Output -join "`n").Trim()
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        return ""
+    }
+
+    $start = $text.IndexOf("{")
+    $end = $text.LastIndexOf("}")
+    if ($start -ge 0 -and $end -gt $start) {
+        return $text.Substring($start, $end - $start + 1).Trim()
+    }
+
+    return $text
+}
+
+function ConvertFrom-JsonCompat {
+    param(
+        [Parameter(Mandatory = $true)][string]$Json,
+        [Parameter(Mandatory = $true)][string]$ErrorMessage
+    )
+
+    try {
+        return $Json | ConvertFrom-Json
+    } catch {
+        $preview = $Json
+        if ($preview.Length -gt 1200) {
+            $preview = $preview.Substring(0, 1200) + "`n...[truncated]"
+        }
+        Write-Host "[ERROR] $ErrorMessage" -ForegroundColor Red
+        Write-Host "[ERROR] PowerShell JSON parser error: $($_.Exception.Message)" -ForegroundColor Red
+        if (-not [string]::IsNullOrWhiteSpace($preview)) {
+            Write-Host "[ERROR] Bootstrap output preview:" -ForegroundColor Red
+            Write-Host $preview
+        }
+        throw $ErrorMessage
+    }
+}
+
 function Remove-PathIfExists {
     param([string]$Path)
 
@@ -114,7 +154,7 @@ $skillsRoot = Join-Path $codexRoot "skills"
 $agentDir = Join-Path $codexRoot "agents"
 $skillDir = Join-Path $skillsRoot "seo"
 $repoUrl = if ($env:CODEX_SEO_REPO) { $env:CODEX_SEO_REPO } else { "https://github.com/AgriciDaniel/codex-seo" }
-$repoRef = if ($env:CODEX_SEO_REF) { $env:CODEX_SEO_REF } else { "v1.9.6-codex.2" }
+$repoRef = if ($env:CODEX_SEO_REF) { $env:CODEX_SEO_REF } else { "v1.9.6-codex.3" }
 $skipPlaywrightBrowser = Test-Truthy $env:CODEX_SEO_SKIP_PLAYWRIGHT_BROWSER
 $playwrightWithDeps = Test-Truthy $env:CODEX_SEO_PLAYWRIGHT_WITH_DEPS
 $suiteSkillDirs = @(
@@ -229,16 +269,12 @@ try {
     }
 
     $bootstrapResult = Invoke-External -Exe $python.Exe -Args $bootstrapArgs -Quiet
-    $bootstrapJson = ($bootstrapResult.Output -join "`n").Trim()
+    $bootstrapJson = Get-JsonObjectText -Output $bootstrapResult.Output
     if ([string]::IsNullOrWhiteSpace($bootstrapJson)) {
         throw "Bootstrap script did not produce JSON output."
     }
 
-    try {
-        $bootstrapPayload = $bootstrapJson | ConvertFrom-Json -Depth 100
-    } catch {
-        throw "Bootstrap script produced invalid JSON output."
-    }
+    $bootstrapPayload = ConvertFrom-JsonCompat -Json $bootstrapJson -ErrorMessage "Bootstrap script produced invalid JSON output."
 
     if ($bootstrapResult.ExitCode -ne 0 -or -not $bootstrapPayload.ok) {
         $verificationNotes = @()

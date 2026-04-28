@@ -71,7 +71,7 @@ EXPECTED_AGENTS = {
 def test_codex_plugin_manifest_is_valid():
     manifest = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))
     assert manifest["name"] == "codex-seo"
-    assert manifest["version"] == "1.9.6+codex.2"
+    assert manifest["version"] == "1.9.6+codex.3"
     assert manifest["skills"] == "./skills/"
     assert manifest["hooks"] == "./hooks/hooks.json"
     assert manifest["repository"] == "https://github.com/AgriciDaniel/codex-seo"
@@ -162,6 +162,13 @@ def test_installers_exclude_generated_promotional_payloads():
     install_ps1 = (ROOT / "install.ps1").read_text(encoding="utf-8")
     assert "screenshots" not in re.search(r"for dir_name in ([^;]+); do", install_sh).group(1)
     assert '"screenshots"' not in re.search(r"foreach \(\$pathName in @\(([^)]+)\)\)", install_ps1).group(1)
+
+
+def test_windows_installer_json_parse_is_windows_powershell_compatible():
+    install_ps1 = (ROOT / "install.ps1").read_text(encoding="utf-8")
+    assert "ConvertFrom-Json -Depth" not in install_ps1
+    assert "ConvertFrom-JsonCompat" in install_ps1
+    assert "Get-JsonObjectText" in install_ps1
 
 
 def test_api_readiness_matrix_covers_smoke_suite():
