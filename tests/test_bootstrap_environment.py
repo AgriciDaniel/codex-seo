@@ -128,3 +128,74 @@ def test_bootstrap_environment_fails_when_core_requirements_fail(monkeypatch, tm
         step for step in result["steps"] if step.get("required") and step["ok"] is False
     ]
     assert len(failed_required_steps) == 2
+
+
+def test_run_command_truncates_large_output(monkeypatch):
+    class Completed:
+        returncode = 0
+        stdout = "x" * (bootstrap_module.OUTPUT_LIMIT + 50)
+        stderr = "y" * (bootstrap_module.OUTPUT_LIMIT + 50)
+
+    def fake_run(*args, **kwargs):
+        return Completed()
+
+    monkeypatch.setattr(bootstrap_module.subprocess, "run", fake_run)
+
+    result = bootstrap_module.run_command(["python", "--version"])
+
+    assert result["ok"] is True
+    assert result["stdout_truncated"] is True
+    assert result["stderr_truncated"] is True
+    assert len(result["stdout"]) < len(Completed.stdout)
+    assert "...[truncated]..." in result["stdout"]
+
+
+def test_bootstrap_cli_writes_json_output_file(monkeypatch, tmp_path: Path, capsys):
+    output_path = tmp_path / "bootstrap.json"
+    payload = {
+        "ok": True,
+        "full_ready": True,
+        "created_venv": False,
+        "venv": "venv",
+        "python": "venv/bin/python",
+        "optional_failed_groups": [],
+        "steps": [],
+        "verification": {"capabilities": {"core_ready": True, "full_ready": True}},
+    }
+
+    monkeypatch.setattr(bootstrap_module, "bootstrap_environment", lambda **kwargs: payload)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["bootstrap_environment.py", "--json", "--json-output", str(output_path)],
+    )
+
+    assert bootstrap_module.main() == 0
+
+    stdout_payload = json.loads(capsys.readouterr().out)
+    file_payload = json.loads(output_path.read_text(encoding="utf-8"))
+    assert stdout_payload == payload
+    assert file_payload == payload
+
+
+def test_bootstrap_cli_returns_json_on_unhandled_exception(monkeypatch, tmp_path: Path, capsys):
+    output_path = tmp_path / "bootstrap-error.json"
+
+    def fail_bootstrap(**kwargs):
+        raise RuntimeError("venv module unavailable")
+
+    monkeypatch.setattr(bootstrap_module, "bootstrap_environment", fail_bootstrap)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["bootstrap_environment.py", "--json", "--json-output", str(output_path)],
+    )
+
+    assert bootstrap_module.main() == 1
+
+    stdout_payload = json.loads(capsys.readouterr().out)
+    file_payload = json.loads(output_path.read_text(encoding="utf-8"))
+    assert stdout_payload["ok"] is False
+    assert stdout_payload["error"] == "venv module unavailable"
+    assert stdout_payload["exception_type"] == "RuntimeError"
+    assert file_payload == stdout_payload

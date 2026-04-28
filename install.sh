@@ -64,13 +64,20 @@ for step in payload.get("steps", []):
 '
 }
 
+print_bootstrap_log_tail() {
+    local log_file="${1:-}"
+    [ -f "${log_file}" ] || return 0
+    echo "[ERROR] Bootstrap output tail:"
+    tail -n 25 "${log_file}" | sed 's/^/[ERROR] /'
+}
+
 main() {
     CODEX_ROOT="${CODEX_HOME:-${HOME}/.codex}"
     SKILLS_ROOT="${CODEX_ROOT}/skills"
     AGENT_DIR="${CODEX_ROOT}/agents"
     SKILL_DIR="${SKILLS_ROOT}/seo"
     REPO_URL="${CODEX_SEO_REPO:-https://github.com/AgriciDaniel/codex-seo}"
-    REPO_REF="${CODEX_SEO_REF:-v1.9.6-codex.4}"
+    REPO_REF="${CODEX_SEO_REF:-v1.9.6-codex.5}"
     PYTHON_BIN="$(resolve_python)" || { echo "[ERROR] Python 3 is required but not installed."; exit 1; }
     SUITE_SKILL_DIRS=(
         seo
@@ -178,10 +185,13 @@ main() {
     fi
 
     echo "[INFO] Bootstrapping Python runtime..."
+    BOOTSTRAP_JSON_FILE="${TEMP_DIR}/bootstrap-result.json"
+    BOOTSTRAP_LOG_FILE="${TEMP_DIR}/bootstrap-output.log"
     BOOTSTRAP_ARGS=(
         "${BOOTSTRAP_SCRIPT}"
         "--venv" "${SKILL_DIR}/.venv"
         "--json"
+        "--json-output" "${BOOTSTRAP_JSON_FILE}"
     )
     if is_truthy "${CODEX_SEO_SKIP_PLAYWRIGHT_BROWSER:-}"; then
         BOOTSTRAP_ARGS+=("--skip-playwright-browser")
@@ -190,13 +200,29 @@ main() {
         BOOTSTRAP_ARGS+=("--with-deps")
     fi
 
-    BOOTSTRAP_JSON="$("${PYTHON_BIN}" "${BOOTSTRAP_ARGS[@]}")" || {
+    if ! "${PYTHON_BIN}" "${BOOTSTRAP_ARGS[@]}" >"${BOOTSTRAP_LOG_FILE}" 2>&1; then
         echo "[ERROR] Codex SEO runtime bootstrap failed."
-        print_bootstrap_diagnostics "${BOOTSTRAP_JSON:-}"
+        if [ -s "${BOOTSTRAP_JSON_FILE}" ]; then
+            BOOTSTRAP_JSON="$(<"${BOOTSTRAP_JSON_FILE}")"
+            print_bootstrap_diagnostics "${BOOTSTRAP_JSON:-}"
+        else
+            print_bootstrap_log_tail "${BOOTSTRAP_LOG_FILE}"
+        fi
+        exit 1
+    fi
+
+    if [ ! -s "${BOOTSTRAP_JSON_FILE}" ]; then
+        echo "[ERROR] Bootstrap script did not produce JSON output."
+        print_bootstrap_log_tail "${BOOTSTRAP_LOG_FILE}"
+        exit 1
+    fi
+    BOOTSTRAP_JSON="$(<"${BOOTSTRAP_JSON_FILE}")"
+
+    BOOTSTRAP_OK="$(printf '%s' "${BOOTSTRAP_JSON}" | "${PYTHON_BIN}" -c 'import json, sys; print("1" if json.load(sys.stdin).get("ok") else "0")')" || {
+        echo "[ERROR] Bootstrap script produced invalid JSON output."
+        print_bootstrap_log_tail "${BOOTSTRAP_LOG_FILE}"
         exit 1
     }
-
-    BOOTSTRAP_OK="$(printf '%s' "${BOOTSTRAP_JSON}" | "${PYTHON_BIN}" -c 'import json, sys; print("1" if json.load(sys.stdin).get("ok") else "0")')"
     if [ "${BOOTSTRAP_OK}" != "1" ]; then
         echo "[ERROR] Codex SEO runtime bootstrap reported an invalid state."
         print_bootstrap_diagnostics "${BOOTSTRAP_JSON:-}"

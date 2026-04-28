@@ -71,7 +71,7 @@ EXPECTED_AGENTS = {
 def test_codex_plugin_manifest_is_valid():
     manifest = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))
     assert manifest["name"] == "codex-seo"
-    assert manifest["version"] == "1.9.6+codex.4"
+    assert manifest["version"] == "1.9.6+codex.5"
     assert manifest["skills"] == "./skills/"
     assert manifest["hooks"] == "./hooks/hooks.json"
     assert manifest["repository"] == "https://github.com/AgriciDaniel/codex-seo"
@@ -169,6 +169,8 @@ def test_windows_installer_json_parse_is_windows_powershell_compatible():
     assert "ConvertFrom-Json -Depth" not in install_ps1
     assert "ConvertFrom-JsonCompat" in install_ps1
     assert "Get-JsonObjectText" in install_ps1
+    assert "--json-output" in install_ps1
+    assert "summary = {" in install_ps1
 
 
 def test_unix_installer_uses_portable_temp_dir_helper():
@@ -183,6 +185,15 @@ def test_installers_copy_requirement_group_files():
     install_ps1 = (ROOT / "install.ps1").read_text(encoding="utf-8")
     assert "requirements*.txt" in install_sh
     assert "requirements*.txt" in install_ps1
+
+
+def test_installers_use_bootstrap_json_output_file():
+    install_sh = (ROOT / "install.sh").read_text(encoding="utf-8")
+    install_ps1 = (ROOT / "install.ps1").read_text(encoding="utf-8")
+    assert 'BOOTSTRAP_JSON_FILE="${TEMP_DIR}/bootstrap-result.json"' in install_sh
+    assert "--json-output" in install_sh
+    assert '$bootstrapJsonPath = Join-Path $tempDir "bootstrap-result.json"' in install_ps1
+    assert "--json-output" in install_ps1
 
 
 def test_api_readiness_matrix_covers_smoke_suite():

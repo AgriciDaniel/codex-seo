@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.9.6+codex.5] - 2026-04-28
+
+### Fixed
+
+- Hardened installer bootstrap JSON transport on macOS, Linux, and PowerShell by writing the bootstrap payload to a dedicated JSON file instead of scraping mixed stdout/stderr.
+- Added structured JSON error output when bootstrap fails before environment verification, so platform failures produce actionable diagnostics instead of raw tracebacks.
+- Added PowerShell fallback parsing through Python for large or deeply nested bootstrap payloads.
+- Truncated captured subprocess logs inside bootstrap JSON to keep installer parsing stable.
+- Updated public install refs to `v1.9.6-codex.5` so users receive the macOS Python 3.14 bootstrap fix from `main`.
+
 ## [1.9.6+codex.1] - 2026-04-27
 
 ### Added

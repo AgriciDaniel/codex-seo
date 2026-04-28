@@ -94,12 +94,40 @@ function ConvertFrom-JsonCompat {
     try {
         return $Json | ConvertFrom-Json
     } catch {
+        $nativeParserError = $_.Exception.Message
+        if ($null -ne $script:python) {
+            $summaryScript = @'
+import json
+import sys
+
+payload = json.loads(sys.stdin.read())
+verification = payload.get("verification") or {}
+summary = {
+    "ok": bool(payload.get("ok")),
+    "full_ready": bool(payload.get("full_ready")),
+    "python": payload.get("python") or "",
+    "optional_failed_groups": payload.get("optional_failed_groups") or [],
+    "verification": {"notes": verification.get("notes") or []},
+    "error": payload.get("error") or "",
+}
+print(json.dumps(summary))
+'@
+            try {
+                $summaryJson = $Json | & $script:python.Exe @($script:python.Args + @("-c", $summaryScript)) 2>$null
+                if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($summaryJson)) {
+                    return $summaryJson | ConvertFrom-Json
+                }
+            } catch {
+                # Fall through to the detailed native parser error below.
+            }
+        }
+
         $preview = $Json
         if ($preview.Length -gt 1200) {
             $preview = $preview.Substring(0, 1200) + "`n...[truncated]"
         }
         Write-Host "[ERROR] $ErrorMessage" -ForegroundColor Red
-        Write-Host "[ERROR] PowerShell JSON parser error: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "[ERROR] PowerShell JSON parser error: $nativeParserError" -ForegroundColor Red
         if (-not [string]::IsNullOrWhiteSpace($preview)) {
             Write-Host "[ERROR] Bootstrap output preview:" -ForegroundColor Red
             Write-Host $preview
@@ -154,7 +182,7 @@ $skillsRoot = Join-Path $codexRoot "skills"
 $agentDir = Join-Path $codexRoot "agents"
 $skillDir = Join-Path $skillsRoot "seo"
 $repoUrl = if ($env:CODEX_SEO_REPO) { $env:CODEX_SEO_REPO } else { "https://github.com/AgriciDaniel/codex-seo" }
-$repoRef = if ($env:CODEX_SEO_REF) { $env:CODEX_SEO_REF } else { "v1.9.6-codex.4" }
+$repoRef = if ($env:CODEX_SEO_REF) { $env:CODEX_SEO_REF } else { "v1.9.6-codex.5" }
 $skipPlaywrightBrowser = Test-Truthy $env:CODEX_SEO_SKIP_PLAYWRIGHT_BROWSER
 $playwrightWithDeps = Test-Truthy $env:CODEX_SEO_PLAYWRIGHT_WITH_DEPS
 $suiteSkillDirs = @(
@@ -257,13 +285,16 @@ try {
     }
 
     Write-Host "[INFO] Bootstrapping Python runtime..." -ForegroundColor Yellow
+    $bootstrapJsonPath = Join-Path $tempDir "bootstrap-result.json"
     $bootstrapArgs = @()
     $bootstrapArgs += $python.Args
     $bootstrapArgs += @(
         $bootstrapScript,
         "--venv",
         (Join-Path $skillDir ".venv"),
-        "--json"
+        "--json",
+        "--json-output",
+        $bootstrapJsonPath
     )
     if ($skipPlaywrightBrowser) {
         $bootstrapArgs += "--skip-playwright-browser"
@@ -273,7 +304,13 @@ try {
     }
 
     $bootstrapResult = Invoke-External -Exe $python.Exe -Args $bootstrapArgs -Quiet
-    $bootstrapJson = Get-JsonObjectText -Output $bootstrapResult.Output
+    $bootstrapJson = ""
+    if (Test-Path $bootstrapJsonPath) {
+        $bootstrapJson = Get-Content -Path $bootstrapJsonPath -Raw
+    }
+    if ([string]::IsNullOrWhiteSpace($bootstrapJson)) {
+        $bootstrapJson = Get-JsonObjectText -Output $bootstrapResult.Output
+    }
     if ([string]::IsNullOrWhiteSpace($bootstrapJson)) {
         throw "Bootstrap script did not produce JSON output."
     }

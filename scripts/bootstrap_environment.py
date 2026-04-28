@@ -15,6 +15,7 @@ import json
 import os
 import subprocess
 import sys
+import traceback
 import venv
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_VENV = ROOT / ".codex-seo-venv"
+OUTPUT_LIMIT = 12000
 CORE_REQUIREMENTS = ROOT / "requirements-core.txt"
 OPTIONAL_REQUIREMENT_GROUPS = [
     ("visual", ROOT / "requirements-visual.txt"),
@@ -31,21 +33,42 @@ OPTIONAL_REQUIREMENT_GROUPS = [
 ]
 
 
+def truncate_output(text: str, limit: int = OUTPUT_LIMIT) -> tuple[str, bool]:
+    """Keep command diagnostics useful without emitting huge JSON payloads."""
+    if len(text) <= limit:
+        return text, False
+    head = limit // 2
+    tail = limit - head
+    return f"{text[:head]}\n...[truncated]...\n{text[-tail:]}", True
+
+
 def run_command(cmd: list[str], cwd: Path | None = None) -> dict[str, Any]:
     """Run a subprocess and capture output."""
     completed = subprocess.run(cmd, cwd=cwd or ROOT, capture_output=True, text=True)
+    stdout, stdout_truncated = truncate_output(completed.stdout)
+    stderr, stderr_truncated = truncate_output(completed.stderr)
     return {
         "cmd": cmd,
         "returncode": completed.returncode,
-        "stdout": completed.stdout,
-        "stderr": completed.stderr,
+        "stdout": stdout,
+        "stderr": stderr,
+        "stdout_truncated": stdout_truncated,
+        "stderr_truncated": stderr_truncated,
         "ok": completed.returncode == 0,
     }
 
 
 def pip_install_requirements(venv_python: Path, requirements_file: Path, group: str, required: bool) -> dict[str, Any]:
     """Install a requirements file and annotate the bootstrap step."""
-    step = run_command([str(venv_python), "-m", "pip", "install", "-r", str(requirements_file)])
+    step = run_command([
+        str(venv_python),
+        "-m",
+        "pip",
+        "install",
+        "--disable-pip-version-check",
+        "-r",
+        str(requirements_file),
+    ])
     step["group"] = group
     step["required"] = required
     return step
@@ -94,7 +117,15 @@ def bootstrap_environment(
         raise RuntimeError(f"Virtual environment Python not found: {venv_python}")
 
     steps = []
-    pip_step = run_command([str(venv_python), "-m", "pip", "install", "--upgrade", "pip"])
+    pip_step = run_command([
+        str(venv_python),
+        "-m",
+        "pip",
+        "install",
+        "--disable-pip-version-check",
+        "--upgrade",
+        "pip",
+    ])
     pip_step["group"] = "pip"
     pip_step["required"] = True
     steps.append(pip_step)
@@ -154,6 +185,32 @@ def bootstrap_environment(
     }
 
 
+def write_json_output(path: str | None, payload: dict[str, Any]) -> None:
+    """Write the JSON payload to a file for installers that need clean transport."""
+    if not path:
+        return
+    output_path = Path(path).expanduser()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+
+def exception_payload(exc: BaseException) -> dict[str, Any]:
+    """Return a structured bootstrap failure instead of a raw traceback."""
+    return {
+        "ok": False,
+        "full_ready": False,
+        "created_venv": False,
+        "venv": "",
+        "python": "",
+        "optional_failed_groups": [],
+        "steps": [],
+        "verification": None,
+        "error": str(exc),
+        "exception_type": type(exc).__name__,
+        "traceback": traceback.format_exc(),
+    }
+
+
 def main() -> int:
     """CLI entry point."""
     parser = argparse.ArgumentParser(description="Bootstrap a Codex SEO runtime environment")
@@ -162,16 +219,21 @@ def main() -> int:
     parser.add_argument("--with-deps", action="store_true", help="Pass --with-deps to Playwright install")
     parser.add_argument("--target", help="Optional URL to validate after bootstrap")
     parser.add_argument("--json", action="store_true", help="Output JSON")
+    parser.add_argument("--json-output", help="Write JSON payload to this file as clean installer transport")
     args = parser.parse_args()
 
-    result = bootstrap_environment(
-        venv_dir=Path(args.venv) if args.venv else None,
-        install_playwright_browser=not args.skip_playwright_browser,
-        with_deps=args.with_deps,
-        target=args.target,
-    )
+    try:
+        result = bootstrap_environment(
+            venv_dir=Path(args.venv) if args.venv else None,
+            install_playwright_browser=not args.skip_playwright_browser,
+            with_deps=args.with_deps,
+            target=args.target,
+        )
+    except Exception as exc:  # pragma: no cover - exact failures are platform dependent
+        result = exception_payload(exc)
 
     if args.json:
+        write_json_output(args.json_output, result)
         print(json.dumps(result, indent=2))
         return 0 if result["ok"] else 1
 

@@ -44,5 +44,5 @@ For optional MCP/API workflows, `setup_required` is a valid result when credenti
 ## Reinstall
 
 ```bash
-CODEX_SEO_REPO=https://github.com/AgriciDaniel/codex-seo CODEX_SEO_REF=v1.9.6-codex.4 bash install.sh
+CODEX_SEO_REPO=https://github.com/AgriciDaniel/codex-seo CODEX_SEO_REF=v1.9.6-codex.5 bash install.sh
 ```
