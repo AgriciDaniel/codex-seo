@@ -5,13 +5,13 @@
 ### Unix
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/codex-seo/v1.9.6-codex.3/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/codex-seo/v1.9.6-codex.4/install.sh | bash
 ```
 
 ### Windows
 
 ```powershell
-irm https://raw.githubusercontent.com/AgriciDaniel/codex-seo/v1.9.6-codex.3/install.ps1 | iex
+irm https://raw.githubusercontent.com/AgriciDaniel/codex-seo/v1.9.6-codex.4/install.ps1 | iex
 ```
 
 ## Manual Install From Local Checkout
@@ -41,7 +41,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 
 - `CODEX_HOME`: alternate Codex home
 - `CODEX_SEO_REPO`: fork or local Git path
-- `CODEX_SEO_REF`: branch, tag, or commit; defaults to `v1.9.6-codex.3`
+- `CODEX_SEO_REF`: branch, tag, or commit; defaults to `v1.9.6-codex.4`
 - `CODEX_SEO_SKIP_PLAYWRIGHT_BROWSER=1`: skip Chromium install
 - `CODEX_SEO_PLAYWRIGHT_WITH_DEPS=1`: install Playwright system deps where supported
 

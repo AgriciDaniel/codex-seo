@@ -71,7 +71,7 @@ EXPECTED_AGENTS = {
 def test_codex_plugin_manifest_is_valid():
     manifest = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))
     assert manifest["name"] == "codex-seo"
-    assert manifest["version"] == "1.9.6+codex.3"
+    assert manifest["version"] == "1.9.6+codex.4"
     assert manifest["skills"] == "./skills/"
     assert manifest["hooks"] == "./hooks/hooks.json"
     assert manifest["repository"] == "https://github.com/AgriciDaniel/codex-seo"
@@ -169,6 +169,13 @@ def test_windows_installer_json_parse_is_windows_powershell_compatible():
     assert "ConvertFrom-Json -Depth" not in install_ps1
     assert "ConvertFrom-JsonCompat" in install_ps1
     assert "Get-JsonObjectText" in install_ps1
+
+
+def test_unix_installer_uses_portable_temp_dir_helper():
+    install_sh = (ROOT / "install.sh").read_text(encoding="utf-8")
+    assert "make_temp_dir()" in install_sh
+    assert 'TEMP_DIR="$(make_temp_dir)"' in install_sh
+    assert 'TEMP_DIR="$(mktemp -d)"' not in install_sh
 
 
 def test_api_readiness_matrix_covers_smoke_suite():

@@ -1,6 +1,6 @@
 [project]
 name = "codex-seo"
-version = "1.9.6+codex.3"
+version = "1.9.6+codex.4"
 description = "Comprehensive SEO analysis skill suite for Codex"
 requires-python = ">=3.10"
 license = "MIT"

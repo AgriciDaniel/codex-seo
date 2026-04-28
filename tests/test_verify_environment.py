@@ -20,6 +20,10 @@ def test_verify_environment_returns_expected_shape():
     assert isinstance(result["dependencies"], list)
     assert "ready" in result
     assert "full_ready" in result["capabilities"]
+    assert "premium_report_ready" in result["capabilities"]
+    assert "google_api_package_ready" in result["capabilities"]
+    assert "missing_report" in result
+    assert "missing_google_api" in result
 
 
 def test_verify_environment_cli_survives_without_site_packages():
@@ -34,3 +38,4 @@ def test_verify_environment_cli_survives_without_site_packages():
     result = json.loads(completed.stdout)
     assert "dependencies" in result
     assert "beautifulsoup4" in result["missing_required"]
+    assert "google-api-python-client" in result["missing_google_api"]

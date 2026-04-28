@@ -154,7 +154,7 @@ $skillsRoot = Join-Path $codexRoot "skills"
 $agentDir = Join-Path $codexRoot "agents"
 $skillDir = Join-Path $skillsRoot "seo"
 $repoUrl = if ($env:CODEX_SEO_REPO) { $env:CODEX_SEO_REPO } else { "https://github.com/AgriciDaniel/codex-seo" }
-$repoRef = if ($env:CODEX_SEO_REF) { $env:CODEX_SEO_REF } else { "v1.9.6-codex.3" }
+$repoRef = if ($env:CODEX_SEO_REF) { $env:CODEX_SEO_REF } else { "v1.9.6-codex.4" }
 $skipPlaywrightBrowser = Test-Truthy $env:CODEX_SEO_SKIP_PLAYWRIGHT_BROWSER
 $playwrightWithDeps = Test-Truthy $env:CODEX_SEO_PLAYWRIGHT_WITH_DEPS
 $suiteSkillDirs = @(
@@ -288,7 +288,7 @@ try {
     }
 
     if (-not $bootstrapPayload.full_ready) {
-        Write-Host "[WARN] Core SEO workflows are ready, but Playwright Chromium is not fully available yet. Visual analysis and premium PDF generation remain limited until browser installation succeeds." -ForegroundColor Yellow
+        Write-Host "[WARN] Core SEO workflows are ready, but one or more extended capabilities are limited. Run the verifier below for details." -ForegroundColor Yellow
     }
 
     Write-Host ""

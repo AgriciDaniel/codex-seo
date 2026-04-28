@@ -20,13 +20,30 @@ is_truthy() {
     esac
 }
 
+make_temp_dir() {
+    local temp_dir
+    if temp_dir="$(mktemp -d 2>/dev/null)"; then
+        printf '%s\n' "${temp_dir}"
+        return 0
+    fi
+    if temp_dir="$(mktemp -d "${TMPDIR:-/tmp}/codex-seo.XXXXXX" 2>/dev/null)"; then
+        printf '%s\n' "${temp_dir}"
+        return 0
+    fi
+    if temp_dir="$(mktemp -d -t codex-seo 2>/dev/null)"; then
+        printf '%s\n' "${temp_dir}"
+        return 0
+    fi
+    return 1
+}
+
 main() {
     CODEX_ROOT="${CODEX_HOME:-${HOME}/.codex}"
     SKILLS_ROOT="${CODEX_ROOT}/skills"
     AGENT_DIR="${CODEX_ROOT}/agents"
     SKILL_DIR="${SKILLS_ROOT}/seo"
     REPO_URL="${CODEX_SEO_REPO:-https://github.com/AgriciDaniel/codex-seo}"
-    REPO_REF="${CODEX_SEO_REF:-v1.9.6-codex.3}"
+    REPO_REF="${CODEX_SEO_REF:-v1.9.6-codex.4}"
     PYTHON_BIN="$(resolve_python)" || { echo "[ERROR] Python 3 is required but not installed."; exit 1; }
     SUITE_SKILL_DIRS=(
         seo
@@ -76,7 +93,7 @@ main() {
 
     mkdir -p "${SKILLS_ROOT}" "${AGENT_DIR}"
 
-    TEMP_DIR="$(mktemp -d)"
+    TEMP_DIR="$(make_temp_dir)" || { echo "[ERROR] Unable to create a temporary directory."; exit 1; }
     trap 'rm -rf "${TEMP_DIR}"' EXIT
 
     echo "[INFO] Downloading Codex SEO (${REPO_REF})..."
@@ -155,7 +172,7 @@ main() {
     FULL_READY="$(printf '%s' "${BOOTSTRAP_JSON}" | "${PYTHON_BIN}" -c 'import json, sys; print("1" if json.load(sys.stdin).get("full_ready") else "0")')"
     VENV_PYTHON="$(printf '%s' "${BOOTSTRAP_JSON}" | "${PYTHON_BIN}" -c 'import json, sys; print(json.load(sys.stdin).get("python", ""))')"
     if [ "${FULL_READY}" != "1" ]; then
-        echo "[WARN] Core SEO workflows are ready, but Playwright Chromium is not fully available yet. Visual analysis and premium PDF generation remain limited until browser installation succeeds."
+        echo "[WARN] Core SEO workflows are ready, but one or more extended capabilities are limited. Run the verifier below for details."
     fi
 
     echo ""
