@@ -1,39 +1,17 @@
 # Installation
 
-## Private Preview
-
-Use this while the repository is private:
-
-```bash
-gh auth login
-gh repo clone AgriciDaniel/codex-seo
-cd codex-seo
-bash install.sh
-```
-
-Windows:
-
-```powershell
-gh auth login
-gh repo clone AgriciDaniel/codex-seo
-cd codex-seo
-powershell -ExecutionPolicy Bypass -File .\install.ps1
-```
-
-## Future Public One-Line Install
-
-Use this after the repository is public.
+## One-Line Install
 
 ### Unix
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/codex-seo/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/codex-seo/v1.9.6-codex.2/install.sh | bash
 ```
 
 ### Windows
 
 ```powershell
-irm https://raw.githubusercontent.com/AgriciDaniel/codex-seo/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/AgriciDaniel/codex-seo/v1.9.6-codex.2/install.ps1 | iex
 ```
 
 ## Manual Install From Local Checkout
@@ -43,8 +21,6 @@ git clone https://github.com/AgriciDaniel/codex-seo.git
 cd codex-seo
 bash install.sh
 ```
-
-For private-preview installs, use `gh repo clone AgriciDaniel/codex-seo` or a Git remote that your current credentials can access.
 
 Windows:
 

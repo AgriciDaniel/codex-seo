@@ -40,7 +40,7 @@ It covers technical SEO, on-page analysis, content quality, E-E-A-T, schema mark
 
 ## Status
 
-- Repository visibility: private preview.
+- Repository visibility: public.
 - Current release: [`v1.9.6-codex.2`](https://github.com/AgriciDaniel/codex-seo/releases/tag/v1.9.6-codex.2).
 - Installer default ref: `v1.9.6-codex.2`.
 - Latest local validation: 47 tests passing, full installed smoke suite passing, demo readiness passing.
@@ -49,13 +49,22 @@ It covers technical SEO, on-page analysis, content quality, E-E-A-T, schema mark
 
 ## Install
 
-### Private Preview Install
-
-Use this while the repository is private:
+### One-Line Install
 
 ```bash
-gh auth login
-gh repo clone AgriciDaniel/codex-seo
+curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/codex-seo/v1.9.6-codex.2/install.sh | bash
+```
+
+Windows:
+
+```powershell
+irm https://raw.githubusercontent.com/AgriciDaniel/codex-seo/v1.9.6-codex.2/install.ps1 | iex
+```
+
+### Review Before Installing
+
+```bash
+git clone https://github.com/AgriciDaniel/codex-seo.git
 cd codex-seo
 bash install.sh
 ```
@@ -63,27 +72,12 @@ bash install.sh
 Windows:
 
 ```powershell
-gh auth login
-gh repo clone AgriciDaniel/codex-seo
+git clone https://github.com/AgriciDaniel/codex-seo.git
 cd codex-seo
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
 The installer copies the skill suite into `~/.codex/skills/`, installs TOML agents into `~/.codex/agents/`, creates a Python virtualenv at `~/.codex/skills/seo/.venv/`, and verifies the runtime.
-
-### Future Public One-Line Install
-
-Use this after the repository is made public:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/codex-seo/main/install.sh | bash
-```
-
-Windows:
-
-```powershell
-irm https://raw.githubusercontent.com/AgriciDaniel/codex-seo/main/install.ps1 | iex
-```
 
 ### Installer Overrides
 
