@@ -1,22 +1,9 @@
-# Codex SEO - Python Dependencies
-# Bounded version pinning with security-conscious minimums
-# Last updated: April 27, 2026
+# Codex SEO - Full Python Dependencies
+# The installer bootstraps core requirements first, then installs optional
+# capability groups best-effort so wheel lag does not block core workflows.
 
-beautifulsoup4>=4.14.3,<5.0.0     # No known CVEs
-requests>=2.32.4,<3.0.0           # CVE-2024-47081, CVE-2024-35195 fixes
-lxml>=6.1.0,<7.0.0                # CVE-2025-24928 + additional libxml2 security patches
-defusedxml>=0.7.1,<1.0.0          # Safe XML parsing for sitemaps and hreflang XML
-playwright>=1.56.0,<2.0.0         # CVE-2025-59288 fix (macOS)
-Pillow>=12.2.0,<13.0.0            # CVE-2025-48379 fix
-urllib3>=2.6.3,<3.0.0             # CRITICAL: CVE-2026-21441 (CVSS 8.9), CVE-2025-66418
-validators>=0.35.0,<1.0.0         # No known CVEs
-rapidocr-onnxruntime>=1.2.3,<2.0.0 # Optional OCR layer for section-level visual intelligence
-matplotlib>=3.10.9,<4.0.0         # Chart rendering for reference-style audit figures
-Markdown>=3.7,<4.0              # HTML rendering for premium audit deliverables
-weasyprint>=68.1,<70.0          # PDF rendering for Google SEO reports
-openpyxl>=3.1.5,<4.0.0          # Excel export for Google SEO reports
-google-api-python-client>=2.194.0,<3.0.0
-google-auth>=2.20.0,<3.0.0
-google-auth-oauthlib>=1.3.1,<2.0.0
-google-auth-httplib2>=0.3.1,<1.0.0
-google-analytics-data>=0.18.0,<1.0.0
+-r requirements-core.txt
+-r requirements-visual.txt
+-r requirements-report.txt
+-r requirements-google.txt
+-r requirements-ocr.txt

@@ -54,10 +54,10 @@ CORE_REQUIRED_PACKAGES = {
     "lxml",
     "Markdown",
     "Pillow",
-    "playwright",
     "requests",
     "validators",
 }
+VISUAL_PACKAGES = {"playwright"}
 REPORT_PACKAGES = {"matplotlib", "openpyxl", "weasyprint"}
 GOOGLE_API_PACKAGES = {
     "google-api-python-client",
@@ -158,6 +158,7 @@ def verify_environment(target: str | None = None) -> dict[str, Any]:
         checks["target"] = check_target(target)
 
     missing_required = [item["package"] for item in dependency_checks if not item["ok"] and item["package"] in CORE_REQUIRED_PACKAGES]
+    missing_visual = [item["package"] for item in dependency_checks if not item["ok"] and item["package"] in VISUAL_PACKAGES]
     missing_report = [item["package"] for item in dependency_checks if not item["ok"] and item["package"] in REPORT_PACKAGES]
     missing_google = [item["package"] for item in dependency_checks if not item["ok"] and item["package"] in GOOGLE_API_PACKAGES]
     missing_optional = [item["package"] for item in dependency_checks if not item["ok"] and item["package"] in OPTIONAL_PACKAGES]
@@ -165,12 +166,12 @@ def verify_environment(target: str | None = None) -> dict[str, Any]:
     core_ready = not any(
         [
             not checks["python"]["ok"],
-            any(not item["ok"] for item in dependency_checks if item["package"] in CORE_REQUIRED_PACKAGES - {"playwright"}),
+            any(not item["ok"] for item in dependency_checks if item["package"] in CORE_REQUIRED_PACKAGES),
             not writable_checks["cache"]["ok"],
             not writable_checks["output"]["ok"],
         ]
     )
-    visual_ready = core_ready and not missing_required and playwright_browser["ok"]
+    visual_ready = core_ready and not missing_visual and playwright_browser["ok"]
     premium_report_ready = visual_ready and not missing_report
     google_api_package_ready = not missing_google
 
@@ -184,6 +185,7 @@ def verify_environment(target: str | None = None) -> dict[str, Any]:
         core_ready and visual_ready and premium_report_ready and google_api_package_ready
     )
     checks["missing_required"] = missing_required
+    checks["missing_visual"] = missing_visual
     checks["missing_report"] = missing_report
     checks["missing_google_api"] = missing_google
     checks["missing_optional"] = missing_optional
@@ -191,13 +193,15 @@ def verify_environment(target: str | None = None) -> dict[str, Any]:
     checks["notes"] = []
     if missing_required:
         checks["notes"].append(f"Missing required packages: {', '.join(missing_required)}.")
+    if missing_visual:
+        checks["notes"].append(f"Missing visual packages: {', '.join(missing_visual)}.")
     if missing_report:
         checks["notes"].append(f"Missing premium report packages: {', '.join(missing_report)}.")
     if missing_google:
         checks["notes"].append(f"Missing Google API packages: {', '.join(missing_google)}.")
     if missing_optional:
         checks["notes"].append(f"Missing optional packages: {', '.join(missing_optional)}.")
-    if not playwright_browser["ok"]:
+    if not missing_visual and not playwright_browser["ok"]:
         checks["notes"].append("Playwright Chromium is unavailable, so visual analysis and PDF generation are not fully ready until `playwright install chromium` succeeds.")
     if checks["capabilities"]["core_ready"] and not checks["capabilities"]["full_ready"]:
         checks["notes"].append("Core analysis workflows are ready. Extended visual, PDF, or Google API workflows remain degraded until the listed setup items are fixed.")
@@ -229,6 +233,7 @@ def main() -> int:
     print(f"Premium-report ready: {'YES' if result['capabilities']['premium_report_ready'] else 'NO'}")
     print(f"Google API packages: {'YES' if result['capabilities']['google_api_package_ready'] else 'NO'}")
     print(f"Missing required dependencies: {', '.join(result['missing_required']) if result['missing_required'] else 'None'}")
+    print(f"Missing visual dependencies: {', '.join(result['missing_visual']) if result['missing_visual'] else 'None'}")
     print(f"Missing report dependencies: {', '.join(result['missing_report']) if result['missing_report'] else 'None'}")
     print(f"Missing Google API dependencies: {', '.join(result['missing_google_api']) if result['missing_google_api'] else 'None'}")
     print(f"Missing optional dependencies: {', '.join(result['missing_optional']) if result['missing_optional'] else 'None'}")

@@ -37,6 +37,33 @@ make_temp_dir() {
     return 1
 }
 
+print_bootstrap_diagnostics() {
+    local payload="${1:-}"
+    [ -n "${payload}" ] || return 0
+    printf '%s' "${payload}" | "${PYTHON_BIN}" -c '
+import json
+import sys
+
+try:
+    payload = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+
+notes = payload.get("verification", {}).get("notes", [])
+for note in notes[:5]:
+    print(f"[ERROR] {note}")
+
+for step in payload.get("steps", []):
+    if step.get("required") and not step.get("ok"):
+        group = step.get("group") or "unknown"
+        print(f"[ERROR] Failed bootstrap step: {group}.")
+        lines = (step.get("stderr") or step.get("stdout") or "").strip().splitlines()
+        if lines:
+            print(f"[ERROR] {lines[-1][:1000]}")
+        break
+'
+}
+
 main() {
     CODEX_ROOT="${CODEX_HOME:-${HOME}/.codex}"
     SKILLS_ROOT="${CODEX_ROOT}/skills"
@@ -128,7 +155,12 @@ main() {
         fi
     done
 
-    for doc_name in requirements.txt CHANGELOG.md README.md; do
+    for requirements_file in "${TEMP_DIR}/codex-seo"/requirements*.txt; do
+        [ -f "${requirements_file}" ] || continue
+        cp "${requirements_file}" "${SKILL_DIR}/$(basename "${requirements_file}")"
+    done
+
+    for doc_name in CHANGELOG.md README.md; do
         if [ -f "${TEMP_DIR}/codex-seo/${doc_name}" ]; then
             cp "${TEMP_DIR}/codex-seo/${doc_name}" "${SKILL_DIR}/${doc_name}"
         fi
@@ -160,19 +192,25 @@ main() {
 
     BOOTSTRAP_JSON="$("${PYTHON_BIN}" "${BOOTSTRAP_ARGS[@]}")" || {
         echo "[ERROR] Codex SEO runtime bootstrap failed."
+        print_bootstrap_diagnostics "${BOOTSTRAP_JSON:-}"
         exit 1
     }
 
     BOOTSTRAP_OK="$(printf '%s' "${BOOTSTRAP_JSON}" | "${PYTHON_BIN}" -c 'import json, sys; print("1" if json.load(sys.stdin).get("ok") else "0")')"
     if [ "${BOOTSTRAP_OK}" != "1" ]; then
         echo "[ERROR] Codex SEO runtime bootstrap reported an invalid state."
+        print_bootstrap_diagnostics "${BOOTSTRAP_JSON:-}"
         exit 1
     fi
 
     FULL_READY="$(printf '%s' "${BOOTSTRAP_JSON}" | "${PYTHON_BIN}" -c 'import json, sys; print("1" if json.load(sys.stdin).get("full_ready") else "0")')"
+    OPTIONAL_FAILED_GROUPS="$(printf '%s' "${BOOTSTRAP_JSON}" | "${PYTHON_BIN}" -c 'import json, sys; print(", ".join(json.load(sys.stdin).get("optional_failed_groups", [])))')"
     VENV_PYTHON="$(printf '%s' "${BOOTSTRAP_JSON}" | "${PYTHON_BIN}" -c 'import json, sys; print(json.load(sys.stdin).get("python", ""))')"
-    if [ "${FULL_READY}" != "1" ]; then
+    if [ "${FULL_READY}" != "1" ] || [ -n "${OPTIONAL_FAILED_GROUPS}" ]; then
         echo "[WARN] Core SEO workflows are ready, but one or more extended capabilities are limited. Run the verifier below for details."
+    fi
+    if [ -n "${OPTIONAL_FAILED_GROUPS}" ]; then
+        echo "[WARN] Optional bootstrap groups failed: ${OPTIONAL_FAILED_GROUPS}"
     fi
 
     echo ""

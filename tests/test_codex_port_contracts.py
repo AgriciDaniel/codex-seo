@@ -178,6 +178,13 @@ def test_unix_installer_uses_portable_temp_dir_helper():
     assert 'TEMP_DIR="$(mktemp -d)"' not in install_sh
 
 
+def test_installers_copy_requirement_group_files():
+    install_sh = (ROOT / "install.sh").read_text(encoding="utf-8")
+    install_ps1 = (ROOT / "install.ps1").read_text(encoding="utf-8")
+    assert "requirements*.txt" in install_sh
+    assert "requirements*.txt" in install_ps1
+
+
 def test_api_readiness_matrix_covers_smoke_suite():
     smoke_text = (ROOT / "scripts" / "run_api_smoke_suite.py").read_text(encoding="utf-8")
     match = re.search(r"DEFAULT_SKILLS = (\[[\s\S]*?\])", smoke_text)

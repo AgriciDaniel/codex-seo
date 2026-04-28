@@ -23,6 +23,7 @@ def test_verify_environment_returns_expected_shape():
     assert "premium_report_ready" in result["capabilities"]
     assert "google_api_package_ready" in result["capabilities"]
     assert "missing_report" in result
+    assert "missing_visual" in result
     assert "missing_google_api" in result
 
 

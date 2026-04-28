@@ -36,6 +36,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 - `~/.codex/skills/seo-*`
 - `~/.codex/agents/seo-*.toml`
 - Python runtime at `~/.codex/skills/seo/.venv`
+- Core Python dependencies, with optional visual/report/Google/OCR groups attempted best-effort
 
 ## Overrides
 

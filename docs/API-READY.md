@@ -12,7 +12,8 @@ python scripts/verify_environment.py --target https://www.python.org --json
 
 What it verifies:
 - Python version
-- Required imports from `requirements.txt`
+- Required core imports from `requirements-core.txt`
+- Optional visual, report, Google API, and OCR imports
 - Playwright Chromium availability
 - Writable `.seo-cache/` and `output/` directories
 - Optional target connectivity
@@ -32,7 +33,7 @@ Readiness fields:
 python scripts/bootstrap_environment.py --target https://www.python.org --json
 ```
 
-Use this first in fresh API runtimes such as Paperclip. It creates or updates a virtualenv, installs `requirements.txt`, attempts `playwright install chromium`, and then runs `verify_environment.py` inside that venv so the bootstrap result reflects actual runtime readiness. `ok: true` now means the core non-visual workflows are runnable. Use `full_ready` when you specifically need screenshots or premium PDF deliverables.
+Use this first in fresh API runtimes such as Paperclip. It creates or updates a virtualenv, installs `requirements-core.txt`, then installs optional visual, report, Google API, and OCR requirement groups best-effort. It attempts `playwright install chromium` when the Playwright package is available, then runs `verify_environment.py` inside that venv so the bootstrap result reflects actual runtime readiness. `ok: true` means the core non-visual workflows are runnable. Use `full_ready` when you specifically need screenshots or premium PDF deliverables.
 
 ### 2. Full Audit Pipeline
 

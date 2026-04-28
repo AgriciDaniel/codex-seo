@@ -1,0 +1,4 @@
+# Codex SEO - OCR Dependencies
+# Optional for section-level visual intelligence.
+
+rapidocr-onnxruntime>=1.2.3,<2.0.0

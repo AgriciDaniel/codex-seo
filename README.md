@@ -43,7 +43,7 @@ It covers technical SEO, on-page analysis, content quality, E-E-A-T, schema mark
 - Repository visibility: public.
 - Current release: [`v1.9.6-codex.4`](https://github.com/AgriciDaniel/codex-seo/releases/tag/v1.9.6-codex.4).
 - Installer default ref: `v1.9.6-codex.4`.
-- Latest local validation: 49 tests passing, full installed smoke suite passing, demo readiness passing.
+- Latest local validation: 52 tests passing, full installed smoke suite passing, demo readiness passing.
 - Runtime credentials stay outside the repo under Codex/local config paths.
 - Discovery topics: `codex`, `codex-cli`, `codex-skills`, `seo`, `ai-seo`, `ai-search`, `technical-seo`, `generative-engine-optimization`, `core-web-vitals`, `schema-markup`, `local-seo`, `ecommerce-seo`, `content-strategy`, `google-search-console`, `dataforseo`, `mcp`, `python`, `automation`, `marketing-automation`, `open-source`.
 
@@ -77,7 +77,7 @@ cd codex-seo
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-The installer copies the skill suite into `~/.codex/skills/`, installs TOML agents into `~/.codex/agents/`, creates a Python virtualenv at `~/.codex/skills/seo/.venv/`, and verifies the runtime.
+The installer copies the skill suite into `~/.codex/skills/`, installs TOML agents into `~/.codex/agents/`, creates a Python virtualenv at `~/.codex/skills/seo/.venv/`, installs core runtime dependencies, attempts optional capability groups, and verifies the runtime.
 
 ### Installer Overrides
 

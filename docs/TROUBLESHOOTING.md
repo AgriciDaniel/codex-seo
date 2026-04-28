@@ -19,6 +19,8 @@ Restart Codex after reinstalling.
 
 If Playwright Chromium fails, core workflows can still run. Visual and PDF workflows remain limited until browser installation succeeds.
 
+On Python 3.14 macOS, some optional packages can lag wheel support. The installer should still complete when `requirements-core.txt` installs and `core_ready` is true; use the verifier notes to identify any optional visual, Google API, report, or OCR capability that needs a different Python/runtime.
+
 ## Credentials Missing
 
 Use Codex paths for new setup:

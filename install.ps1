@@ -234,7 +234,11 @@ try {
         }
     }
 
-    foreach ($doc in @("requirements.txt", "CHANGELOG.md", "README.md")) {
+    Get-ChildItem -Path $checkoutDir -Filter "requirements*.txt" -File -ErrorAction SilentlyContinue | ForEach-Object {
+        Copy-Item -Path $_.FullName -Destination (Join-Path $skillDir $_.Name) -Force
+    }
+
+    foreach ($doc in @("CHANGELOG.md", "README.md")) {
         $sourceDoc = Join-Path $checkoutDir $doc
         if (Test-Path $sourceDoc) {
             Copy-Item -Path $sourceDoc -Destination (Join-Path $skillDir $doc) -Force
@@ -287,8 +291,16 @@ try {
         throw "Codex SEO runtime bootstrap failed."
     }
 
-    if (-not $bootstrapPayload.full_ready) {
+    $optionalFailedGroups = @()
+    if ($null -ne $bootstrapPayload.optional_failed_groups) {
+        $optionalFailedGroups = @($bootstrapPayload.optional_failed_groups)
+    }
+
+    if (-not $bootstrapPayload.full_ready -or $optionalFailedGroups.Count -gt 0) {
         Write-Host "[WARN] Core SEO workflows are ready, but one or more extended capabilities are limited. Run the verifier below for details." -ForegroundColor Yellow
+    }
+    if ($optionalFailedGroups.Count -gt 0) {
+        Write-Host "[WARN] Optional bootstrap groups failed: $($optionalFailedGroups -join ', ')" -ForegroundColor Yellow
     }
 
     Write-Host ""

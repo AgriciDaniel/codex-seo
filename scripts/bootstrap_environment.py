@@ -22,6 +22,13 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_VENV = ROOT / ".codex-seo-venv"
+CORE_REQUIREMENTS = ROOT / "requirements-core.txt"
+OPTIONAL_REQUIREMENT_GROUPS = [
+    ("visual", ROOT / "requirements-visual.txt"),
+    ("report", ROOT / "requirements-report.txt"),
+    ("google", ROOT / "requirements-google.txt"),
+    ("ocr", ROOT / "requirements-ocr.txt"),
+]
 
 
 def run_command(cmd: list[str], cwd: Path | None = None) -> dict[str, Any]:
@@ -34,6 +41,14 @@ def run_command(cmd: list[str], cwd: Path | None = None) -> dict[str, Any]:
         "stderr": completed.stderr,
         "ok": completed.returncode == 0,
     }
+
+
+def pip_install_requirements(venv_python: Path, requirements_file: Path, group: str, required: bool) -> dict[str, Any]:
+    """Install a requirements file and annotate the bootstrap step."""
+    step = run_command([str(venv_python), "-m", "pip", "install", "-r", str(requirements_file)])
+    step["group"] = group
+    step["required"] = required
+    return step
 
 
 def python_in_venv(venv_dir: Path) -> Path:
@@ -66,7 +81,7 @@ def bootstrap_environment(
     with_deps: bool = False,
     target: str | None = None,
 ) -> dict[str, Any]:
-    """Create/update a runtime venv and install dependencies."""
+    """Create/update a runtime venv and install core plus optional dependencies."""
     venv_dir = venv_dir or DEFAULT_VENV
     created = False
     if not venv_dir.exists():
@@ -79,29 +94,51 @@ def bootstrap_environment(
         raise RuntimeError(f"Virtual environment Python not found: {venv_python}")
 
     steps = []
-    steps.append(run_command([str(venv_python), "-m", "pip", "install", "--upgrade", "pip"]))
-    steps.append(run_command([str(venv_python), "-m", "pip", "install", "-r", str(ROOT / "requirements.txt")]))
+    pip_step = run_command([str(venv_python), "-m", "pip", "install", "--upgrade", "pip"])
+    pip_step["group"] = "pip"
+    pip_step["required"] = True
+    steps.append(pip_step)
+
+    core_requirements = CORE_REQUIREMENTS if CORE_REQUIREMENTS.exists() else ROOT / "requirements.txt"
+    core_step = pip_install_requirements(venv_python, core_requirements, "core", required=True)
+    steps.append(core_step)
+
+    visual_package_ready = core_step["ok"]
+    if core_step["ok"]:
+        for group, requirements_file in OPTIONAL_REQUIREMENT_GROUPS:
+            if requirements_file.exists():
+                step = pip_install_requirements(venv_python, requirements_file, group, required=False)
+                steps.append(step)
+                if group == "visual":
+                    visual_package_ready = step["ok"]
 
     playwright_step = None
-    if install_playwright_browser:
+    if install_playwright_browser and visual_package_ready:
         cmd = [str(venv_python), "-m", "playwright", "install"]
         if with_deps:
             cmd.append("--with-deps")
         cmd.append("chromium")
         playwright_step = run_command(cmd)
+        playwright_step["group"] = "playwright-browser"
+        playwright_step["required"] = False
         steps.append(playwright_step)
 
     verify_cmd = [str(venv_python), str(ROOT / "scripts" / "verify_environment.py"), "--json"]
     if target:
         verify_cmd.extend(["--target", target])
     verification_step = run_command(verify_cmd)
+    verification_step["group"] = "verification"
+    verification_step["required"] = True
     verification = parse_json_stdout(verification_step)
     steps.append(verification_step)
 
     core_ready = bool(verification and verification.get("capabilities", {}).get("core_ready"))
     full_ready = bool(verification and verification.get("capabilities", {}).get("full_ready"))
+    optional_failed_groups = [
+        step.get("group", "unknown") for step in steps if not step.get("required") and not step["ok"]
+    ]
     ok = (
-        all(step["ok"] for step in steps[:2])
+        all(step["ok"] for step in steps if step.get("required"))
         and verification_step["ok"]
         and core_ready
     )
@@ -111,6 +148,7 @@ def bootstrap_environment(
         "created_venv": created,
         "venv": str(venv_dir),
         "python": str(venv_python),
+        "optional_failed_groups": optional_failed_groups,
         "steps": steps,
         "verification": verification,
     }
