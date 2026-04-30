@@ -2,6 +2,10 @@
   <img src="screenshots/cover-image.webp" alt="Codex SEO: SEO audit skill suite for Codex" width="100%">
 </p>
 
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=39FE6_oRcYY"><strong>Watch on YouTube</strong></a>
+</p>
+
 # Codex SEO - SEO Audit Skill Suite for Codex
 
 Codex-first SEO analysis suite with 1 orchestrator skill, 26 specialist workflows, 24 TOML agent profiles, MCP/API extensions, deterministic headless runners, and premium audit report generation.
