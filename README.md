@@ -2,9 +2,9 @@
   <img src="screenshots/cover-image.webp" alt="Codex SEO: SEO audit skill suite for Codex" width="100%">
 </p>
 
-<p align="center">
-  <a href="https://www.youtube.com/watch?v=39FE6_oRcYY"><strong>Watch on YouTube</strong></a>
-</p>
+<h2 align="center">
+  <a href="https://www.youtube.com/watch?v=39FE6_oRcYY">Watch on YouTube</a>
+</h2>
 
 # Codex SEO - SEO Audit Skill Suite for Codex
 
