@@ -27,6 +27,18 @@ def test_verify_environment_returns_expected_shape():
     assert "missing_google_api" in result
 
 
+def test_verify_environment_reports_unwritable_paths(monkeypatch):
+    def fake_check_writable(path):
+        return {"ok": False, "path": str(path), "error": "permission denied"}
+
+    monkeypatch.setattr("verify_environment.check_writable", fake_check_writable)
+    monkeypatch.setattr("verify_environment.check_playwright_browser", lambda: {"ok": False, "error": "missing"})
+    result = verify_environment()
+    assert any("Cannot write cache path" in note for note in result["notes"])
+    assert any("Cannot write output path" in note for note in result["notes"])
+    assert not result["capabilities"]["core_ready"]
+
+
 def test_verify_environment_cli_survives_without_site_packages():
     completed = subprocess.run(
         [sys.executable, "-S", str(SCRIPTS_DIR / "verify_environment.py"), "--json"],

@@ -196,6 +196,34 @@ def test_installers_use_bootstrap_json_output_file():
     assert "--json-output" in install_ps1
 
 
+def test_installers_use_local_checkout_when_run_from_repo_root():
+    install_sh = (ROOT / "install.sh").read_text(encoding="utf-8")
+    install_ps1 = (ROOT / "install.ps1").read_text(encoding="utf-8")
+    assert "Installing Codex SEO from local checkout" in install_sh
+    assert 'CHECKOUT_DIR="${LOCAL_SOURCE}"' in install_sh
+    assert "Installing Codex SEO from local checkout" in install_ps1
+    assert "$checkoutDir = $localSource" in install_ps1
+
+
+def test_installers_reject_python_314_until_dependencies_support_it():
+    install_sh = (ROOT / "install.sh").read_text(encoding="utf-8")
+    install_ps1 = (ROOT / "install.ps1").read_text(encoding="utf-8")
+    assert "Python 3.10-3.13 is required" in install_sh
+    assert "sys.version_info[:2] < (3, 14)" in install_sh
+    assert "Python 3.10-3.13 is required" in install_ps1
+    assert "$MaxPythonMinor = 14" in install_ps1
+
+
+def test_windows_installer_prints_failed_bootstrap_step_diagnostics():
+    install_ps1 = (ROOT / "install.ps1").read_text(encoding="utf-8")
+    assert "Write-BootstrapDiagnostics" in install_ps1
+    assert "Failed bootstrap step" in install_ps1
+    assert "$failedStep.stderr" in install_ps1
+    assert "failed_step = {" in install_ps1
+    assert '"steps": [failed_step] if failed_step else []' in install_ps1
+    assert "Cannot write $pathName path" in install_ps1
+
+
 def test_api_readiness_matrix_covers_smoke_suite():
     smoke_text = (ROOT / "scripts" / "run_api_smoke_suite.py").read_text(encoding="utf-8")
     match = re.search(r"DEFAULT_SKILLS = (\[[\s\S]*?\])", smoke_text)

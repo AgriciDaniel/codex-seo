@@ -2,6 +2,10 @@
 # PowerShell installation script
 
 $ErrorActionPreference = "Stop"
+$MinPythonMajor = 3
+$MinPythonMinor = 10
+$MaxPythonMajor = 3
+$MaxPythonMinor = 14
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "  Codex SEO - Installer" -ForegroundColor Cyan
@@ -10,14 +14,47 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
 function Resolve-Python {
-    $pythonCmd = Get-Command -Name python -ErrorAction SilentlyContinue
-    if ($null -ne $pythonCmd) {
-        return @{ Exe = "python"; Args = @() }
-    }
+    $candidates = @()
 
     $pyCmd = Get-Command -Name py -ErrorAction SilentlyContinue
     if ($null -ne $pyCmd) {
-        return @{ Exe = "py"; Args = @("-3") }
+        foreach ($minor in @(13, 12, 11, 10)) {
+            $candidates += @{ Exe = "py"; Args = @("-3.$minor") }
+        }
+        $candidates += @{ Exe = "py"; Args = @("-3") }
+    }
+
+    foreach ($name in @("python", "python3")) {
+        $cmd = Get-Command -Name $name -ErrorAction SilentlyContinue
+        if ($null -ne $cmd) {
+            $candidates += @{ Exe = $name; Args = @() }
+        }
+    }
+
+    foreach ($candidate in $candidates) {
+        try {
+            $versionOutput = (& $candidate.Exe @($candidate.Args + @("--version")) 2>&1 | Select-Object -Last 1).ToString().Trim()
+        } catch {
+            continue
+        }
+
+        if ($versionOutput -notmatch "Python\s+(\d+)\.(\d+)") {
+            continue
+        }
+
+        $major = [int]$Matches[1]
+        $minor = [int]$Matches[2]
+        $meetsMinimum = $major -gt $MinPythonMajor -or ($major -eq $MinPythonMajor -and $minor -ge $MinPythonMinor)
+        $belowMaximum = $major -lt $MaxPythonMajor -or ($major -eq $MaxPythonMajor -and $minor -lt $MaxPythonMinor)
+        if ($meetsMinimum -and $belowMaximum) {
+            return @{
+                Exe = $candidate.Exe
+                Args = $candidate.Args
+                VersionOutput = $versionOutput
+                Major = $major
+                Minor = $minor
+            }
+        }
     }
 
     return $null
@@ -102,12 +139,24 @@ import sys
 
 payload = json.loads(sys.stdin.read())
 verification = payload.get("verification") or {}
+failed_step = None
+for step in payload.get("steps") or []:
+    if step.get("required") and not step.get("ok"):
+        failed_step = {
+            "group": step.get("group") or "unknown",
+            "stdout": step.get("stdout") or "",
+            "stderr": step.get("stderr") or "",
+            "ok": False,
+            "required": True,
+        }
+        break
 summary = {
     "ok": bool(payload.get("ok")),
     "full_ready": bool(payload.get("full_ready")),
     "python": payload.get("python") or "",
     "optional_failed_groups": payload.get("optional_failed_groups") or [],
     "verification": {"notes": verification.get("notes") or []},
+    "steps": [failed_step] if failed_step else [],
     "error": payload.get("error") or "",
 }
 print(json.dumps(summary))
@@ -136,6 +185,63 @@ print(json.dumps(summary))
     }
 }
 
+function Write-BootstrapDiagnostics {
+    param([object]$Payload)
+
+    if ($null -eq $Payload) {
+        return
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($Payload.error)) {
+        Write-Host "[ERROR] $($Payload.error)" -ForegroundColor Red
+    }
+
+    $verificationNotes = @()
+    if ($null -ne $Payload.verification -and $null -ne $Payload.verification.notes) {
+        $verificationNotes = @($Payload.verification.notes)
+    }
+    $verificationNotes | Select-Object -First 5 | ForEach-Object {
+        Write-Host "[ERROR] $_" -ForegroundColor Red
+    }
+
+    $failedStep = $null
+    if ($null -ne $Payload.steps) {
+        $failedStep = @($Payload.steps) | Where-Object { $_.required -and -not $_.ok } | Select-Object -First 1
+    }
+    if ($null -eq $failedStep) {
+        return
+    }
+
+    $group = if ($failedStep.group) { $failedStep.group } else { "unknown" }
+    Write-Host "[ERROR] Failed bootstrap step: $group." -ForegroundColor Red
+    $diagnostic = if ($failedStep.stderr) { $failedStep.stderr } else { $failedStep.stdout }
+    if (-not [string]::IsNullOrWhiteSpace($diagnostic)) {
+        if ($group -eq "verification") {
+            try {
+                $verificationPayload = $diagnostic | ConvertFrom-Json
+                if ($null -ne $verificationPayload.missing_required -and @($verificationPayload.missing_required).Count -gt 0) {
+                    Write-Host "[ERROR] Missing required packages: $(@($verificationPayload.missing_required) -join ', ')." -ForegroundColor Red
+                }
+                if ($null -ne $verificationPayload.paths) {
+                    foreach ($pathName in @("cache", "output")) {
+                        $pathCheck = $verificationPayload.paths.$pathName
+                        if ($null -ne $pathCheck -and -not $pathCheck.ok) {
+                            Write-Host "[ERROR] Cannot write $pathName path $($pathCheck.path): $($pathCheck.error)" -ForegroundColor Red
+                        }
+                    }
+                }
+                return
+            } catch {
+                # Fall back to a compact stderr/stdout tail below.
+            }
+        }
+        $lines = $diagnostic.Trim() -split "`r?`n"
+        if ($lines.Count -gt 0) {
+            Write-Host "[ERROR] $($lines[-1])" -ForegroundColor Red
+        }
+    }
+}
+
 function Remove-PathIfExists {
     param([string]$Path)
 
@@ -146,29 +252,14 @@ function Remove-PathIfExists {
 
 $python = Resolve-Python
 if ($null -eq $python) {
-    Write-Host "[ERROR] Python 3 is required but was not found in PATH." -ForegroundColor Red
+    Write-Host "[ERROR] Python 3.10-3.13 is required but was not found in PATH." -ForegroundColor Red
+    Write-Host "[ERROR] Python 3.14 is not supported yet by all Codex SEO dependencies." -ForegroundColor Red
     exit 1
 }
 
-try {
-    $pythonVersionOutput = (& $python.Exe @($python.Args + @("--version")) 2>&1 | Select-Object -Last 1).ToString().Trim()
-} catch {
-    Write-Host "[ERROR] Failed to determine Python version." -ForegroundColor Red
-    exit 1
-}
-
-if ($pythonVersionOutput -notmatch "Python\s+(\d+)\.(\d+)") {
-    Write-Host "[ERROR] Failed to parse Python version from: $pythonVersionOutput" -ForegroundColor Red
-    exit 1
-}
-
-$pythonMajor = [int]$Matches[1]
-$pythonMinor = [int]$Matches[2]
+$pythonMajor = $python.Major
+$pythonMinor = $python.Minor
 $pythonVersion = "$pythonMajor.$pythonMinor"
-if ($pythonMajor -lt 3 -or ($pythonMajor -eq 3 -and $pythonMinor -lt 10)) {
-    Write-Host "[ERROR] Python 3.10+ is required but $pythonVersion was found." -ForegroundColor Red
-    exit 1
-}
 Write-Host "[OK] Python $pythonVersion detected" -ForegroundColor Green
 
 $gitCmd = Get-Command -Name git -ErrorAction SilentlyContinue
@@ -183,6 +274,11 @@ $agentDir = Join-Path $codexRoot "agents"
 $skillDir = Join-Path $skillsRoot "seo"
 $repoUrl = if ($env:CODEX_SEO_REPO) { $env:CODEX_SEO_REPO } else { "https://github.com/AgriciDaniel/codex-seo" }
 $repoRef = if ($env:CODEX_SEO_REF) { $env:CODEX_SEO_REF } else { "v1.9.6-codex.5" }
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$localSource = if (
+    (Test-Path (Join-Path $scriptDir ".codex-plugin\plugin.json")) -and
+    (Test-Path (Join-Path $scriptDir "skills\seo\SKILL.md"))
+) { $scriptDir } else { "" }
 $skipPlaywrightBrowser = Test-Truthy $env:CODEX_SEO_SKIP_PLAYWRIGHT_BROWSER
 $playwrightWithDeps = Test-Truthy $env:CODEX_SEO_PLAYWRIGHT_WITH_DEPS
 $suiteSkillDirs = @(
@@ -221,12 +317,17 @@ New-Item -ItemType Directory -Force -Path $agentDir | Out-Null
 $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) ([System.Guid]::NewGuid().ToString())
 New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
 try {
-    $checkoutDir = Join-Path $tempDir "codex-seo"
+    if (-not [string]::IsNullOrWhiteSpace($localSource)) {
+        $checkoutDir = $localSource
+        Write-Host "[INFO] Installing Codex SEO from local checkout..." -ForegroundColor Yellow
+    } else {
+        $checkoutDir = Join-Path $tempDir "codex-seo"
 
-    Write-Host "[INFO] Downloading Codex SEO ($repoRef)..." -ForegroundColor Yellow
-    $cloneResult = Invoke-External -Exe "git" -Args @("clone", "--depth", "1", "--branch", $repoRef, $repoUrl, $checkoutDir)
-    if ($cloneResult.ExitCode -ne 0) {
-        throw "Unable to download ref $repoRef. Confirm the branch/tag exists and your Git credentials can access $repoUrl."
+        Write-Host "[INFO] Downloading Codex SEO ($repoRef)..." -ForegroundColor Yellow
+        $cloneResult = Invoke-External -Exe "git" -Args @("clone", "--depth", "1", "--branch", $repoRef, $repoUrl, $checkoutDir)
+        if ($cloneResult.ExitCode -ne 0) {
+            throw "Unable to download ref $repoRef. Confirm the branch/tag exists and your Git credentials can access $repoUrl."
+        }
     }
 
     $commitResult = Invoke-External -Exe "git" -Args @("-C", $checkoutDir, "rev-parse", "HEAD") -Quiet
@@ -318,13 +419,7 @@ try {
     $bootstrapPayload = ConvertFrom-JsonCompat -Json $bootstrapJson -ErrorMessage "Bootstrap script produced invalid JSON output."
 
     if ($bootstrapResult.ExitCode -ne 0 -or -not $bootstrapPayload.ok) {
-        $verificationNotes = @()
-        if ($null -ne $bootstrapPayload.verification -and $null -ne $bootstrapPayload.verification.notes) {
-            $verificationNotes = @($bootstrapPayload.verification.notes)
-        }
-        if ($verificationNotes.Count -gt 0) {
-            $verificationNotes | ForEach-Object { Write-Host "[ERROR] $_" -ForegroundColor Red }
-        }
+        Write-BootstrapDiagnostics -Payload $bootstrapPayload
         throw "Codex SEO runtime bootstrap failed."
     }
 

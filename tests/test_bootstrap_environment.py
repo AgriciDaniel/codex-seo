@@ -130,6 +130,16 @@ def test_bootstrap_environment_fails_when_core_requirements_fail(monkeypatch, tm
     assert len(failed_required_steps) == 2
 
 
+def test_parse_json_stdout_extracts_json_after_import_banner():
+    payload = {"ready": True, "capabilities": {"core_ready": True}}
+    step = {
+        "ok": True,
+        "stdout": "WeasyPrint could not import some external libraries\n" + json.dumps(payload),
+    }
+
+    assert bootstrap_module.parse_json_stdout(step) == payload
+
+
 def test_run_command_truncates_large_output(monkeypatch):
     class Completed:
         returncode = 0
