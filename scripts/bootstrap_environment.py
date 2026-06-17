@@ -92,8 +92,13 @@ def parse_json_stdout(step: dict[str, Any]) -> dict[str, Any] | None:
     """Parse a subprocess stdout payload as JSON when possible."""
     if not step["ok"] or not step["stdout"].strip():
         return None
+    text = step["stdout"].strip()
+    start = text.find("{")
+    end = text.rfind("}")
+    if start >= 0 and end > start:
+        text = text[start : end + 1]
     try:
-        return json.loads(step["stdout"])
+        return json.loads(text)
     except json.JSONDecodeError:
         return None
 
@@ -233,7 +238,10 @@ def main() -> int:
         result = exception_payload(exc)
 
     if args.json:
-        write_json_output(args.json_output, result)
+        try:
+            write_json_output(args.json_output, result)
+        except Exception as exc:  # pragma: no cover - depends on filesystem permissions
+            result = exception_payload(exc)
         print(json.dumps(result, indent=2))
         return 0 if result["ok"] else 1
 
