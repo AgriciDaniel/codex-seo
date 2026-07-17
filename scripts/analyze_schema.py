@@ -169,8 +169,9 @@ def analyze_schema(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict[str, Any]:
         issues.append(f"Deprecated schema type(s) detected: {', '.join(deprecated_hits)}.")
         validation = "errors"
 
-    if "FAQPage" in detected_types and business_type not in {"government", "healthcare"}:
-        issues.append("FAQPage is present on a non-government/non-healthcare page and should not be positioned as a Google rich-result tactic.")
+    if "FAQPage" in detected_types:
+        issues.append("FAQPage is valid Schema.org markup, but Google removed FAQ rich results for every site on May 7, 2026.")
+        recommendations.append("Keep FAQPage only for truthful semantic interoperability; do not report Google eligibility or unverified AI visibility gains.")
         validation = "warnings" if validation == "valid" else validation
 
     recommended_types = infer_recommended_types(page_type, business_type)

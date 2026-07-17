@@ -75,13 +75,14 @@ explanations with "learn more" and "get started" side by side, common in SaaS,
 both /blog/ and /product/ internal links in navigation.
 
 **SERP indicators (top 10):** mix of branded and informational results,
-some results with FAQ schema + others with SoftwareApplication schema,
+PAA or answer-focused passages alongside commercial results,
 moderate ad density.
 
 **Content structure:** Problem statement > Solution overview > How it works > Feature deep-dives > Social proof > CTA > FAQ.
 
-**Required elements:** FAQPage or HowTo schema combined with product schema,
-both educational and commercial CTAs, clear value proposition.
+**Required elements:** the supported primary schema for the page entity,
+both educational and commercial CTAs, clear value proposition. Visible FAQ
+content may help users, but FAQPage and HowTo have no Google rich-result eligibility.
 
 **Common mismatches:**
 - Pure Blog Post missing product integration (severity: HIGH)

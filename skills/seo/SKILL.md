@@ -107,7 +107,7 @@ Hard rules:
 - WARNING at 30+ location pages (enforce 60%+ unique content)
 - HARD STOP at 50+ location pages (require user justification)
 - Never recommend HowTo schema (deprecated Sept 2023)
-- FAQ schema for Google rich results: only government and healthcare sites (Aug 2023 restriction); existing FAQPage on commercial sites -> flag Info priority (not Critical), noting AI/LLM citation benefit; adding new FAQPage -> not recommended for Google benefit
+- Google removed FAQ rich results on May 7, 2026. Treat `FAQPage` as valid Schema.org semantic markup with no Google rich-result eligibility; never recommend it for a Google visibility benefit or claim an AI/LLM citation uplift without platform-specific evidence.
 - All Core Web Vitals references use INP, never FID
 
 ## Community Footer

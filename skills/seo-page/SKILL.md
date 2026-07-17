@@ -60,7 +60,7 @@ Check these cache files when present:
 - Detect all types (JSON-LD preferred)
 - Validate required properties
 - Identify missing opportunities
-- NEVER recommend HowTo (deprecated) or FAQ (restricted to gov/health)
+- NEVER recommend HowTo or FAQPage for Google rich-result eligibility; Google removed both features from Search results
 
 ### Images
 - Alt text: present, descriptive, includes keywords where natural

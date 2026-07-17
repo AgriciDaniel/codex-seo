@@ -103,7 +103,7 @@
 | `userCanonical` | URL declared canonical by the page |
 | `crawledAs` | `DESKTOP`, `MOBILE` |
 
-**`richResultsResult`:** Verdict + detected rich result types (FAQPage, HowTo, etc.)
+**`richResultsResult`:** Verdict + currently supported detected rich result types (for example, Product, Breadcrumb, or Article). Google removed FAQ and HowTo rich-result features.
 
 ### Rate Limits
 - 2,000 QPD / 600 QPM per site
