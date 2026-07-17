@@ -106,11 +106,6 @@ def _validate_schema_object(obj: dict, block_num: int) -> List[str]:
     if schema_type in deprecated:
         errors.append(f"{prefix}: @type '{schema_type}' is {deprecated[schema_type]}")
 
-    # Check for restricted types used incorrectly
-    restricted = {"FAQPage": "restricted to government and healthcare sites only (Aug 2023)"}
-    if schema_type in restricted:
-        errors.append(f"{prefix}: @type '{schema_type}' is {restricted[schema_type]} — verify site qualifies")
-
     return errors
 
 
