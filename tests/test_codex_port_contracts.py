@@ -1,6 +1,8 @@
 import ast
 import json
 import re
+import subprocess
+import sys
 from pathlib import Path
 
 
@@ -194,6 +196,40 @@ def test_installers_use_bootstrap_json_output_file():
     assert "--json-output" in install_sh
     assert '$bootstrapJsonPath = Join-Path $tempDir "bootstrap-result.json"' in install_ps1
     assert "--json-output" in install_ps1
+
+
+def test_unix_installer_handles_null_verification_diagnostics():
+    payload = json.dumps(
+        {
+            "verification": None,
+            "steps": [
+                {
+                    "required": True,
+                    "ok": False,
+                    "group": "verification",
+                    "stderr": "verification unavailable",
+                }
+            ],
+        }
+    )
+    result = subprocess.run(
+        [
+            "bash",
+            "-c",
+            'source "$1"; PYTHON_BIN="$2"; print_bootstrap_diagnostics "$3"',
+            "bash",
+            str(ROOT / "install.sh"),
+            sys.executable,
+            payload,
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "[ERROR] Failed bootstrap step: verification." in result.stdout
+    assert "[ERROR] verification unavailable" in result.stdout
 
 
 def test_api_readiness_matrix_covers_smoke_suite():
