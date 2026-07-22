@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Setup script for the Banana image-generation MCP server in Codex.
+Setup script for Claude Banana MCP server in Claude Code.
 
-Configures @ycse/nanobanana-mcp in Codex's settings.json
+Configures @ycse/nanobanana-mcp in Claude Code's settings.json
 with the user's Google AI API key.
 
 Usage:
@@ -18,14 +18,13 @@ import sys
 import os
 from pathlib import Path
 
-SETTINGS_PATH = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")) / "settings.json"
+SETTINGS_PATH = Path.home() / ".claude" / "settings.json"
 MCP_NAME = "nanobanana-mcp"
-MCP_PACKAGE = "@ycse/nanobanana-mcp"
-DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
+MCP_PACKAGE = "@ycse/nanobanana-mcp@1.1.1"
 
 
 def load_settings() -> dict:
-    """Load Codex settings.json."""
+    """Load Claude Code settings.json."""
     if not SETTINGS_PATH.exists():
         return {}
     with open(SETTINGS_PATH, "r") as f:
@@ -33,7 +32,7 @@ def load_settings() -> dict:
 
 
 def save_settings(settings: dict) -> None:
-    """Save Codex settings.json."""
+    """Save Claude Code settings.json."""
     SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(SETTINGS_PATH, "w") as f:
         json.dump(settings, f, indent=2)
@@ -51,7 +50,8 @@ def check_setup() -> bool:
         print(f"MCP server '{MCP_NAME}' is configured.")
         print(f"  Package: {MCP_PACKAGE}")
         print(f"  API Key: {masked}")
-        print(f"  Model:   {env.get('NANOBANANA_MODEL', DEFAULT_MODEL)}")
+        model = env.get("NANOBANANA_MODEL")
+        print(f"  Model:   {model if model else 'MCP package default'}")
         return True
     print(f"MCP server '{MCP_NAME}' is NOT configured.")
     return False
@@ -65,13 +65,13 @@ def remove_mcp() -> None:
         del servers[MCP_NAME]
         settings["mcpServers"] = servers
         save_settings(settings)
-        print(f"Removed '{MCP_NAME}' from Codex settings.")
+        print(f"Removed '{MCP_NAME}' from Claude Code settings.")
     else:
         print(f"'{MCP_NAME}' not found in settings.")
 
 
 def setup_mcp(api_key: str) -> None:
-    """Configure MCP server in Codex settings."""
+    """Configure MCP server in Claude Code settings."""
     if not api_key or not api_key.strip():
         print("Error: API key cannot be empty.")
         sys.exit(1)
@@ -87,15 +87,14 @@ def setup_mcp(api_key: str) -> None:
         "args": ["-y", MCP_PACKAGE],
         "env": {
             "GOOGLE_AI_API_KEY": api_key,
-            "NANOBANANA_MODEL": DEFAULT_MODEL,
         },
     }
 
     save_settings(settings)
     print(f"\nMCP server '{MCP_NAME}' configured successfully!")
     print(f"  Package: {MCP_PACKAGE}")
-    print(f"  Model:   {DEFAULT_MODEL}")
-    print(f"\nRestart Codex for changes to take effect.")
+    print(f"  Model:   MCP package default")
+    print(f"\nRestart Claude Code for changes to take effect.")
     print(f"Generated images will be saved to: ~/Documents/nanobanana_generated/")
 
 
@@ -134,7 +133,7 @@ def main() -> None:
         api_key = os.environ.get("GOOGLE_AI_API_KEY")
 
     if not api_key:
-        print("Banana Image Generation - MCP Setup")
+        print("Claude Banana - MCP Setup")
         print("=" * 40)
         print(f"\nGet your free API key at: https://aistudio.google.com/apikey")
         print()

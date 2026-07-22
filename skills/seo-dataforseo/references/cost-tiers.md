@@ -17,7 +17,7 @@
 | **Backlinks** | `backlinks_*` | $0.02 | Per sub-call |
 | **Content** | `content_analysis_*` | $0.02 | Search, summary, trends |
 | **Business** | `business_data_*` | $0.05 | Listings search |
-| **AI/GEO** | `ai_optimization_*` | $0.05 | ChatGPT scraper, LLM mentions |
+| **AI/GEO** | `ai_optimization_chat_gpt_scraper`, `ai_opt_llm_ment_*` | $0.05 | ChatGPT scraper, LLM mentions |
 | **Merchant** | `merchant_*` | $0.02 | Google Shopping, Amazon |
 | **Domain** | `domain_analytics_whois_*` | $0.005 | WHOIS data |
 | **Domain** | `domain_analytics_technologies_*` | $0.01 | Tech stack |
@@ -31,7 +31,7 @@
 | **Aggressive** | $50.00 | $2.00 | threshold | Agency bulk work |
 | **Unlimited** | $999.00 | -- | none | Trusted pipelines |
 
-Configure with: `python scripts/dataforseo_costs.py config --mode threshold --threshold 0.50 --daily-limit 10.00`
+Configure with: `python ~/.codex/skills/seo/scripts/dataforseo_costs.py config --mode threshold --threshold 0.50 --daily-limit 10.00`
 
 ## Cost Reduction Tips
 
@@ -44,11 +44,11 @@ Configure with: `python scripts/dataforseo_costs.py config --mode threshold --th
 ## Approval Flow
 
 Before any DataForSEO MCP call:
-1. Run `python scripts/dataforseo_costs.py check <endpoint> [--count N]`
+1. Run `python ~/.codex/skills/seo/scripts/dataforseo_costs.py check <endpoint> [--count N]`
 2. If `status: "approved"` → proceed
 3. If `status: "needs_approval"` → show cost to user, ask to confirm
 4. If `status: "blocked"` → inform user daily limit would be exceeded
-5. After call completes, log: `python scripts/dataforseo_costs.py log <endpoint> <cost>`
+5. After call completes, log: `python ~/.codex/skills/seo/scripts/dataforseo_costs.py log <endpoint> <cost>`
 
 ## Warn Endpoints
 

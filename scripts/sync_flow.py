@@ -7,13 +7,14 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
+import urllib.error
 import urllib.parse
-
-import requests
+import urllib.request
 
 
 API_ROOT = "https://api.github.com/repos/AgriciDaniel/flow/contents"
@@ -34,6 +35,41 @@ STATIC_FILES = [
     ("docs/10-references/bibliography.md", "bibliography.md"),
 ]
 LOCK_REL = pathlib.Path("skills") / "seo-flow" / "references" / "flow-prompts.lock"
+
+# Map upstream FLOW doc paths (a numbered-folder layout) onto this plugin's
+# flattened skills/seo-flow/references/ layout. A None value means the target is
+# not shipped in this plugin, so the link is removed while its label text stays.
+_FLOW_LINK_MAP = {
+    "01-framework/flow-framework.md": "flow-framework.md",
+    "10-references/bibliography.md": "bibliography.md",
+    "00-START-HERE.md": "../SKILL.md",
+    "06-win/dual-surface-scorecard.md": None,
+    "06-win/bofu-and-conversion-content.md": None,
+}
+_FLOW_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+\.md)\)")
+
+
+def rewrite_flow_links(text, target_path, refs_dir):
+    """Repoint upstream FLOW relative links onto this plugin's flattened layout.
+
+    Synced bodies link to the upstream numbered-folder layout (01-framework/,
+    10-references/, 06-win/) that does not exist here. Links whose target ships
+    under references/ are repointed; links to non-shipped targets are unlinked
+    (the human-readable label is kept) so no dead link survives the sync.
+    """
+    def _sub(match):
+        label, href = match.group(1), match.group(2)
+        for tail, local in _FLOW_LINK_MAP.items():
+            if href.endswith(tail):
+                if local is None:
+                    return label
+                rel = os.path.relpath(
+                    (refs_dir / local).resolve(), target_path.parent.resolve()
+                )
+                return f"[{label}]({rel})"
+        return match.group(0)
+
+    return _FLOW_LINK_RE.sub(_sub, text)
 
 
 def script_root():
@@ -65,7 +101,13 @@ def _base_headers():
 def _authed_headers():
     """Returns authenticated headers, or base headers if gh CLI is absent or unauthed."""
     try:
-        result = subprocess.run(["gh", "auth", "token"], capture_output=True, text=True)
+        result = subprocess.run(
+            ["gh", "auth", "token"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
     except FileNotFoundError:
         return _base_headers()
     if result.returncode != 0 or not result.stdout.strip():
@@ -81,19 +123,22 @@ def content_url(path, ref):
 def api_get(path, ref, headers):
     url = content_url(path, ref)
     _validate_github_url(url)
+    request = urllib.request.Request(url, headers=headers)
     try:
-        response = requests.get(url, headers=headers, timeout=15)
-        if response.status_code == 403 and "Authorization" not in headers:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            data = response.read(_SIZE_LIMIT + 1)
+            if len(data) > _SIZE_LIMIT:
+                raise ValueError(f"Response for {path!r} exceeds {_SIZE_LIMIT} bytes")
+            return json.loads(data)
+    except urllib.error.HTTPError as exc:
+        if exc.code in (403, 429) and "Authorization" not in headers:
             authed = _authed_headers()
             if "Authorization" in authed:
                 return api_get(path, ref, authed)
-        response.raise_for_status()
-        data = response.content[: _SIZE_LIMIT + 1]
-        if len(data) > _SIZE_LIMIT:
-            raise ValueError(f"Response for {path!r} exceeds {_SIZE_LIMIT} bytes")
-        return json.loads(data)
-    except requests.HTTPError:
         raise
+    except urllib.error.URLError as exc:
+        reason = getattr(exc, "reason", exc)
+        raise SystemExit(f"Network error reaching GitHub: {reason}") from None
 
 
 def fetch_file(path, ref, headers):
@@ -238,7 +283,9 @@ def sync(args):
         print(f"fetch: {source}", file=sys.stderr)
         raw = fetch_file(source, args.ref, headers)
         content = f"{attribution_header(today)}\n{raw}"
-        record_write(root, refs / target, content, args.dry_run, changes)
+        tpath = refs / target
+        content = rewrite_flow_links(content, tpath, refs)
+        record_write(root, tpath, content, args.dry_run, changes)
 
     for stage in PROMPT_STAGES:
         source_dir = f"docs/09-prompts/{stage}"
@@ -249,6 +296,7 @@ def sync(args):
             prompt_rows.append(prompt_meta(stage, filename, raw))
             target = refs / "prompts" / stage / filename
             content = f"{attribution_header(today)}\n{raw}"
+            content = rewrite_flow_links(content, target, refs)
             record_write(root, target, content, args.dry_run, changes)
 
     record_write(root, refs / "prompts" / "README.md", prompt_readme(prompt_rows), args.dry_run, changes)

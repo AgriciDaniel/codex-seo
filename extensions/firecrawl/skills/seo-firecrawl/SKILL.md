@@ -5,32 +5,17 @@ description: >
   Use when user says "crawl site", "map site", "full crawl",
   "find all pages", "broken links", "site structure",
   "discover pages", "JS rendering", or needs site-wide analysis.
-user-invokable: true
+user-invocable: true
 argument-hint: "[command] <url>"
 license: MIT
 compatibility: "Requires Firecrawl MCP server"
 metadata:
   author: AgriciDaniel
-  version: "1.7.2"
+  version: "2.2.4"
   category: seo
 ---
 
-# Firecrawl Extension for Codex SEO
-## Shared Data Cache
-
-**Step 0 -- Check shared data cache:**
-
-Before gathering, check `.seo-cache/` for reusable context from related SEO skills.
-Reference: `../seo/references/shared-data-cache.md` for schemas and dependency map.
-
-Check these cache files when present:
-- `.seo-cache/site-meta.json` for domain, business type, industry, and crawl context
-- `.seo-cache/audit-scores.json` for prior full-audit priorities
-- `.seo-cache/pages/{url-slug}/page-analysis.json` for page-level context when a URL is provided
-
-- If found: parse and use clearly valid fields (note "Using cached [X] from [date]")
-- If missing, corrupt, or irrelevant: continue with fresh evidence
-- If the user says "refresh" or "re-run": ignore cache reads and overwrite on write
+# Firecrawl Extension for Claude SEO
 
 This skill requires the Firecrawl extension to be installed:
 ```bash
@@ -215,8 +200,3 @@ When Firecrawl is available during `/seo audit`:
 1. Use `fetch_page.py` for single-page analysis (no API cost)
 2. Use `WebFetch` tool for basic HTML retrieval
 3. Install Firecrawl: `./extensions/firecrawl/install.sh`
-
-## Write to shared data cache
-
-After completing all work, write a concise JSON summary to `.seo-cache/` when the workflow produced durable findings.
-Use the schemas and naming rules in `../seo/references/shared-data-cache.md`; include at least `cache_type`, `analyzed_at`, source URL/domain, key findings, issues, recommendations, and tool limitations. Add `.seo-cache/` to `.gitignore` if it is missing.

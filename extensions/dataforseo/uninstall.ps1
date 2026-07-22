@@ -1,32 +1,28 @@
-# DataForSEO Extension Uninstaller for Codex SEO (Windows)
+# DataForSEO Extension Uninstaller for Claude SEO (Windows)
 
 $ErrorActionPreference = "Stop"
 
 Write-Host "→ Uninstalling DataForSEO extension..." -ForegroundColor Yellow
 
-$CodexRoot = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME ".codex" }
-$SkillsRoot = Join-Path $CodexRoot "skills"
-$AgentDir = Join-Path $CodexRoot "agents"
-
 # Remove skill
-if (Test-Path (Join-Path $SkillsRoot "seo-dataforseo")) {
-    Remove-Item -Recurse -Force (Join-Path $SkillsRoot "seo-dataforseo")
+if (Test-Path "$env:USERPROFILE\.claude\skills\seo-dataforseo") {
+    Remove-Item -Recurse -Force "$env:USERPROFILE\.claude\skills\seo-dataforseo"
 }
 
 # Remove agent
-$agentFile = Join-Path $AgentDir "seo-dataforseo.toml"
+$agentFile = "$env:USERPROFILE\.claude\agents\seo-dataforseo.md"
 if (Test-Path $agentFile) {
     Remove-Item -Force $agentFile
 }
 
 # Remove field config
-$fieldConfig = Join-Path $SkillsRoot "seo\dataforseo-field-config.json"
+$fieldConfig = "$env:USERPROFILE\.claude\skills\seo\dataforseo-field-config.json"
 if (Test-Path $fieldConfig) {
     Remove-Item -Force $fieldConfig
 }
 
 # Remove MCP server entry from settings.json
-$settingsFile = Join-Path $CodexRoot "settings.json"
+$settingsFile = "$env:USERPROFILE\.claude\settings.json"
 if (Test-Path $settingsFile) {
     $python = Get-Command -Name python -ErrorAction SilentlyContinue
     if ($null -eq $python) {
@@ -52,10 +48,10 @@ if 'mcpServers' in settings and 'dataforseo' in settings['mcpServers']:
         if ($LASTEXITCODE -eq 0) {
             Write-Host "  ✓ Removed dataforseo from settings.json" -ForegroundColor Green
         } else {
-            Write-Host "  ⚠  Could not auto-remove MCP config. Remove 'dataforseo' from ~\.codex\settings.json manually." -ForegroundColor Yellow
+            Write-Host "  ⚠  Could not auto-remove MCP config. Remove 'dataforseo' from ~\.claude\settings.json manually." -ForegroundColor Yellow
         }
     } else {
-        Write-Host "  ⚠  Python not found. Remove 'dataforseo' from ~\.codex\settings.json manually." -ForegroundColor Yellow
+        Write-Host "  ⚠  Python not found. Remove 'dataforseo' from ~\.claude\settings.json manually." -ForegroundColor Yellow
     }
 }
 

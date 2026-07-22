@@ -1,35 +1,20 @@
 ---
 name: seo-audit
-description: "Full website SEO audit with parallel subagent delegation. Crawls up to 500 pages, detects business type, delegates to up to 15 specialists (8 always + 7 conditional), generates health score. Use when user says audit, full SEO check, SEO best-practice review, analyze my site, website health check, or find SEO issues."
-user-invokable: true
+description: "Full website SEO audit with parallel subagent delegation. Crawls up to 500 pages, detects business type, delegates to up to 15 specialists (8 always + 7 conditional), generates health score. Use when user says audit, full SEO check, analyze my site, or website health check."
+user-invocable: true
 argument-hint: "[url]"
 license: MIT
 metadata:
   author: AgriciDaniel
-  version: "1.9.6"
+  version: "2.2.4"
   category: seo
 ---
 
 # Full Website SEO Audit
-## Shared Data Cache
-
-**Step 0 -- Check shared data cache:**
-
-Before gathering, check `.seo-cache/` for reusable context from related SEO skills.
-Reference: `../seo/references/shared-data-cache.md` for schemas and dependency map.
-
-Check these cache files when present:
-- `.seo-cache/site-meta.json` for domain, business type, industry, and crawl context
-- `.seo-cache/audit-scores.json` for prior full-audit priorities
-- `.seo-cache/pages/{url-slug}/page-analysis.json` for page-level context when a URL is provided
-
-- If found: parse and use clearly valid fields (note "Using cached [X] from [date]")
-- If missing, corrupt, or irrelevant: continue with fresh evidence
-- If the user says "refresh" or "re-run": ignore cache reads and overwrite on write
 
 ## Process
 
-1. **Fetch homepage**: use `scripts/fetch_page.py` to retrieve HTML
+1. **Render homepage**: use `python ~/.codex/skills/seo/scripts/render_page.py <url> --mode auto --json` to capture raw HTML, rendered HTML, extracted text, SPA status, and accessibility data when needed
 2. **Detect business type**: analyze homepage signals per seo orchestrator
 3. **Crawl site**: follow internal links up to 500 pages, respect robots.txt
 4. **Delegate to subagents** (if available, otherwise run inline sequentially):
@@ -42,14 +27,15 @@ Check these cache files when present:
    - `seo-geo` -- AI crawler access, llms.txt, citability, brand mention signals
    - `seo-local` -- GBP signals, NAP consistency, reviews, local schema, industry-specific local factors (spawn when Local Service industry detected: brick-and-mortar, SAB, or hybrid business type)
    - `seo-maps` -- Geo-grid rank tracking, GBP audit, review intelligence, competitor radius mapping (spawn when Local Service detected AND DataForSEO MCP available)
-   - `seo-google` -- CWV field data (CrUX), URL indexation (GSC), organic traffic (GA4) (spawn when Google API credentials detected via `python scripts/google_auth.py --check`)
-   - `seo-backlinks` -- Backlink profile data: DA/PA, referring domains, anchor text, toxic links (spawn when Moz or Bing API credentials detected via `python scripts/backlinks_auth.py --check`, or always include Common Crawl domain-level metrics)
+   - `seo-google` -- CWV field data (CrUX), URL indexation (GSC), organic traffic (GA4) (spawn when Google API credentials detected via `python ~/.codex/skills/seo/scripts/google_auth.py --check`)
+   - `seo-backlinks` -- Backlink profile data: DA/PA, referring domains, anchor text, toxic links (spawn when Moz or Bing API credentials detected via `python ~/.codex/skills/seo/scripts/backlinks_auth.py --check`, or always include Common Crawl domain-level metrics)
    - `seo-cluster` -- Semantic clustering analysis (spawn when content strategy signals detected: blog, pillar pages, topic clusters)
    - `seo-sxo` -- Search experience analysis: page-type mismatch, user stories, persona scoring (always include in full audits)
-   - `seo-drift` -- Drift analysis: compare against stored baseline (spawn when drift baseline exists for the URL via `python scripts/drift_history.py <url>`)
+   - `seo-drift` -- Drift analysis: compare against stored baseline (spawn when drift baseline exists for the URL via `python ~/.codex/skills/seo/scripts/drift_history.py <url>`)
    - `seo-ecommerce` -- Product schema, marketplace intelligence (spawn when E-commerce industry detected)
 5. **Score** -- aggregate into SEO Health Score (0-100)
-6. **Report** -- generate prioritized action plan
+6. **Persist audit artifacts** -- write all outputs under `{domain}-audit/`
+7. **Report** -- generate prioritized action plan and optional PDF/HTML report
 
 ## Crawl Configuration
 
@@ -64,10 +50,54 @@ Delay between requests: 1 second
 
 ## Output Files
 
-- `FULL-AUDIT-REPORT.md`: Comprehensive findings
-- `ACTION-PLAN.md`: Prioritized recommendations (Critical > High > Medium > Low)
-- `screenshots/`: Desktop + mobile captures (if Playwright available)
-- **PDF Report** (recommended): Generate a professional A4 PDF using `scripts/google_report.py --type full`. This produces a white-cover enterprise report with TOC, executive summary, charts (Lighthouse gauges, query bars, index donut), metric cards, threshold tables, prioritized recommendations with effort estimates, and implementation roadmap. Always offer PDF generation after completing an audit.
+- `{domain}-audit/FULL-AUDIT-REPORT.md`: Comprehensive findings
+- `{domain}-audit/ACTION-PLAN.md`: Prioritized recommendations (Critical > High > Medium > Low)
+- `{domain}-audit/audit-data.json`: Structured audit envelope for report generation
+- `{domain}-audit/findings/*.md`: Per-category specialist findings (`technical.md`, `content.md`, `schema.md`, `performance.md`, `visual.md`, etc.)
+- `{domain}-audit/screenshots/`: Desktop + mobile captures (if Playwright available)
+- **PDF Report** (recommended): Generate a professional A4 PDF using `python ~/.codex/skills/seo/scripts/google_report.py --type full --data {domain}-audit/audit-data.json --domain <domain> --output-dir {domain}-audit/`. This produces a white-cover enterprise report with TOC, executive summary, charts (Lighthouse gauges, query bars, index donut), metric cards, threshold tables, prioritized recommendations with effort estimates, and implementation roadmap. Always offer PDF generation after completing an audit.
+
+## Structured Audit Data Envelope
+
+Write `{domain}-audit/audit-data.json` with this shape so `python ~/.codex/skills/seo/scripts/google_report.py --type full --data {domain}-audit/audit-data.json --domain <domain> --output-dir {domain}-audit/` can generate a report even when Google API data is unavailable:
+
+```json
+{
+  "summary": {
+    "health_score": 0,
+    "business_type": "detected type",
+    "top_findings": [],
+    "quick_wins": []
+  },
+  "categories": [
+    {
+      "name": "Technical SEO",
+      "score": 0,
+      "what_works": [],
+      "findings": [
+        {
+          "title": "Finding title",
+          "severity": "Critical|High|Medium|Low|Info",
+          "description": "Evidence-backed detail",
+          "recommendation": "Specific fix"
+        }
+      ]
+    }
+  ],
+  "action_plan": {
+    "phases": [
+      {"name": "Phase 1: Critical Fixes", "timeframe": "Week 1", "items": []},
+      {"name": "Phase 2: High-Impact Improvements", "timeframe": "Weeks 2-3", "items": []},
+      {"name": "Phase 3: Content & Authority", "timeframe": "Month 2", "items": []},
+      {"name": "Phase 4: Monitoring & Iteration", "timeframe": "Ongoing", "items": []}
+    ]
+  },
+  "artifacts": {
+    "findings_dir": "findings/",
+    "screenshots_dir": "screenshots/"
+  }
+}
+```
 
 ## Scoring Weights
 
@@ -140,7 +170,7 @@ If DataForSEO MCP tools are available, spawn the `seo-dataforseo` agent alongsid
 
 ## Google API Integration (Optional)
 
-If Google API credentials are configured (`python scripts/google_auth.py --check`), spawn the `seo-google` agent to enrich the audit with real Google field data: CrUX Core Web Vitals (replaces lab-only estimates), GSC URL indexation status, search performance (clicks, impressions, CTR), and GA4 organic traffic trends. The Performance (CWV) category score benefits most from field data.
+If Google API credentials are configured (`python ~/.codex/skills/seo/scripts/google_auth.py --check`), spawn the `seo-google` agent to enrich the audit with real Google field data: CrUX Core Web Vitals (replaces lab-only estimates), GSC URL indexation status, search performance (clicks, impressions, CTR), and GA4 organic traffic trends. The Performance (CWV) category score benefits most from field data.
 
 ## Error Handling
 
@@ -150,8 +180,3 @@ If Google API credentials are configured (`python scripts/google_auth.py --check
 | robots.txt blocks crawling | Report which paths are blocked. Analyze only accessible pages and note the limitation in the report. |
 | Rate limiting (429 responses) | Back off and reduce concurrent requests. Report partial results with a note on which sections could not be completed. |
 | Timeout on large sites (500+ pages) | Cap the crawl at the timeout limit. Report findings for pages crawled and estimate total site scope. |
-
-## Write to shared data cache
-
-After completing all work, write a concise JSON summary to `.seo-cache/` when the workflow produced durable findings.
-Use the schemas and naming rules in `../seo/references/shared-data-cache.md`; include at least `cache_type`, `analyzed_at`, source URL/domain, key findings, issues, recommendations, and tool limitations. Add `.seo-cache/` to `.gitignore` if it is missing.

@@ -7,33 +7,18 @@ description: >
   from DataForSEO Merchant API. Use when user says "ecommerce SEO", "product SEO",
   "Google Shopping", "marketplace SEO", "product schema", "Amazon SEO",
   "product listings", "shopping ads", or "merchant SEO".
-user-invokable: true
+user-invocable: true
 argument-hint: "<url or keyword>"
 license: MIT
 compatibility: "Enhanced with DataForSEO Merchant API (optional)"
 metadata:
   author: AgriciDaniel
   original_author: "Matej Marjanovic (Pro Hub Challenge)"
-  version: "1.9.6"
+  version: "2.2.4"
   category: seo
 ---
 
 # E-commerce SEO Analysis
-## Shared Data Cache
-
-**Step 0 -- Check shared data cache:**
-
-Before gathering, check `.seo-cache/` for reusable context from related SEO skills.
-Reference: `../seo/references/shared-data-cache.md` for schemas and dependency map.
-
-Check these cache files when present:
-- `.seo-cache/site-meta.json` for domain, business type, industry, and crawl context
-- `.seo-cache/audit-scores.json` for prior full-audit priorities
-- `.seo-cache/pages/{url-slug}/page-analysis.json` for page-level context when a URL is provided
-
-- If found: parse and use clearly valid fields (note "Using cached [X] from [date]")
-- If missing, corrupt, or irrelevant: continue with fresh evidence
-- If the user says "refresh" or "re-run": ignore cache reads and overwrite on write
 
 Comprehensive product page optimization, marketplace intelligence, and
 competitive pricing analysis. Works standalone (on-page + schema) and with
@@ -57,8 +42,8 @@ Fetch and parse any product page for on-page SEO quality.
 ### Workflow
 
 ```
-1. python scripts/fetch_page.py <url>         → raw HTML
-2. python scripts/parse_html.py --url <url>   → SEO elements
+1. python ~/.codex/skills/seo/scripts/render_page.py <url> --mode auto → raw/rendered HTML
+2. python ~/.codex/skills/seo/scripts/parse_html.py --url <url>   → SEO elements
 3. Analyze product-specific signals (below)
 ```
 
@@ -122,7 +107,7 @@ Live competitive analysis from Google Shopping results.
 
 Before EVERY Merchant API call:
 ```bash
-python scripts/dataforseo_costs.py check merchant_google_products_search
+python ~/.codex/skills/seo/scripts/dataforseo_costs.py check merchant_google_products_search
 ```
 
 - `"status": "approved"` -- proceed
@@ -131,20 +116,20 @@ python scripts/dataforseo_costs.py check merchant_google_products_search
 
 After each call:
 ```bash
-python scripts/dataforseo_costs.py log merchant_google_products_search <cost>
+python ~/.codex/skills/seo/scripts/dataforseo_costs.py log merchant_google_products_search <cost>
 ```
 
 ### Workflow
 
 ```bash
 # Product search: who sells what at what price
-python scripts/dataforseo_merchant.py search "<keyword>" --marketplace google
+python ~/.codex/skills/seo/scripts/dataforseo_merchant.py search "<keyword>" --marketplace google
 
 # Seller analysis: merchant ratings and dominance
-python scripts/dataforseo_merchant.py sellers "<keyword>"
+python ~/.codex/skills/seo/scripts/dataforseo_merchant.py sellers "<keyword>"
 
 # Normalize results for analysis
-python scripts/dataforseo_normalize.py results.json --module merchant
+python ~/.codex/skills/seo/scripts/dataforseo_normalize.py results.json --module merchant
 ```
 
 ### Analysis Outputs
@@ -178,7 +163,7 @@ Cross-marketplace intelligence comparing Google Shopping and Amazon.
 ### Cost Guardrail (MANDATORY)
 
 ```bash
-python scripts/dataforseo_costs.py check merchant_amazon_products_search
+python ~/.codex/skills/seo/scripts/dataforseo_costs.py check merchant_amazon_products_search
 ```
 
 Amazon endpoints are in the `warn_endpoints` set -- always requires user approval.
@@ -187,10 +172,10 @@ Amazon endpoints are in the `warn_endpoints` set -- always requires user approva
 
 ```bash
 # Amazon product search
-python scripts/dataforseo_merchant.py search "<keyword>" --marketplace amazon
+python ~/.codex/skills/seo/scripts/dataforseo_merchant.py search "<keyword>" --marketplace amazon
 
 # Cross-marketplace comparison
-python scripts/dataforseo_merchant.py compare "<keyword>"
+python ~/.codex/skills/seo/scripts/dataforseo_merchant.py compare "<keyword>"
 ```
 
 ### Cross-Marketplace Report
@@ -246,7 +231,9 @@ Identify mismatches between organic and Shopping visibility.
 
 Validate and generate Product schema following Google's current requirements.
 
-### Required Properties (Google Merchant)
+### Confirmed Required Properties (Google Merchant)
+
+Confirmed required fields are `name`, `image`, and `offers`; use `Offer`, not `AggregateOffer`, for merchant listings.
 
 ```json
 {
@@ -254,15 +241,12 @@ Validate and generate Product schema following Google's current requirements.
   "@type": "Product",
   "name": "",
   "image": [""],
-  "description": "",
-  "brand": { "@type": "Brand", "name": "" },
   "offers": {
     "@type": "Offer",
     "url": "",
     "priceCurrency": "USD",
     "price": "0.00",
-    "availability": "https://schema.org/InStock",
-    "seller": { "@type": "Organization", "name": "" }
+    "availability": "https://schema.org/InStock"
   }
 }
 ```
@@ -270,12 +254,14 @@ Validate and generate Product schema following Google's current requirements.
 ### Recommended Properties (Enhance Rich Results)
 
 - `sku` -- product identifier
+- `description`, `brand`, `offers.seller` -- recommended context fields
 - `gtin13` / `gtin14` / `mpn` -- global trade identifiers
 - `aggregateRating` -- star rating + review count
 - `review` -- individual reviews (minimum 1)
 - `color`, `material`, `size` -- variant attributes
-- `shippingDetails` -- ShippingDetails with rate and delivery time
+- `shippingDetails` -- ShippingDetails with rate and delivery time (merchant-level shipping via `ShippingService` is also supported; shipping/returns can be set in Search Console without a Merchant Center account)
 - `hasMerchantReturnPolicy` -- MerchantReturnPolicy with type and days
+- `hasAdultConsideration` -- **required for adult-oriented products** (added 2026-05-20 to Product variant / Merchant listing); Google Search supports only the value `https://schema.org/SexualContentConsideration`
 
 ### Validation Rules
 
@@ -283,7 +269,7 @@ Validate and generate Product schema following Google's current requirements.
 2. `availability` must use full Schema.org URL enum
 3. `image` should be array with >= 1 high-res image URL
 4. `priceCurrency` must be ISO 4217 (USD, EUR, GBP)
-5. `brand.name` must not be empty or "N/A"
+5. If `brand` is present, `brand.name` must not be empty or "N/A"
 6. Dates in `priceValidUntil` must be ISO 8601
 7. If `aggregateRating` present: `ratingValue` and `reviewCount` required
 
@@ -305,11 +291,48 @@ Validate and generate Product schema following Google's current requirements.
 | Skill | Integration Point |
 |-------|------------------|
 | **seo-schema** | Delegates Product schema generation; reuses validation logic |
-| **seo-images** | Product image audit (alt text, format, dimensions) |
+| **seo-images** | Product image audit (alt text, format, dimensions), plus `DigitalSourceType: TrainedAlgorithmicMedia` IPTC label for AI-generated product images (Merchant Center requirement) |
 | **seo-content** | Product description E-E-A-T and uniqueness analysis |
 | **seo-dataforseo** | Organic keyword rankings for gap analysis |
 | **seo-technical** | Core Web Vitals for product pages (LCP on hero image) |
-| **seo-google** | Google Merchant Center feed validation via GSC |
+| **seo-google** | GSC indexation + Performance data for product URLs (NOT Merchant Center feed validation, that is done in Merchant Center / the **Merchant API**; the legacy Content API for Shopping sunsets 2026-08-18) |
+
+## UCP: Universal Commerce Protocol (live)
+
+Google-initiated open standard (co-developed with Shopify, Etsy, Wayfair,
+Target, Walmart; payment partners Visa/Mastercard/Stripe/Adyen/Amex) for
+letting AI agents discover, negotiate, and transact with merchants without
+one-off integrations. Google confirms a first reference implementation for
+conversational buying in AI Mode in Search. Broader Universal Cart rollout
+details are reported from Google I/O 2026 keynote coverage; not confirmed on a
+Google-owned source. ucp.dev lists **2026-04-08** as the latest release in its
+**date-based versioning** scheme, not `1.0`; two integration paths: **Native**
+(default) and **Embedded** (approved merchants). Pairs with **AP2** (reportedly
+moving toward FIDO governance). Canonical: developers.google.com/merchant/ucp
+and ucp.dev.
+
+Merchants already on **Google Merchant Center** with clean Product schema can
+declare a UCP profile at `/.well-known/ucp` listing capabilities
+(`dev.ucp.shopping.checkout`, `.fulfillment`, `.discount`). See
+`references/ucp-universal-commerce-protocol.md` for audit criteria,
+capability examples, and the relationship to AP2 (Agent Payments Protocol).
+
+### Audit command
+
+```bash
+# Discover and validate the UCP profile
+python ~/.codex/skills/seo/scripts/ucp_check.py https://store.example.com --json
+
+# With endpoint reachability probes (HEAD each declared capability)
+python ~/.codex/skills/seo/scripts/ucp_check.py https://store.example.com --probe-endpoints --json
+```
+
+The script returns: profile presence, version, declared capabilities,
+structural issues (missing fields, unknown capability IDs), and (with
+`--probe-endpoints`) per-endpoint reachability. SSRF-blocked endpoints are
+reported explicitly. Missing profile is reported as opportunity, not failure.
+UCP itself is live; what's early is broad merchant adoption. Flag a literal
+`"version": "1.0"` as invalid (UCP versions are date-based, e.g. `2026-04-08`).
 
 ---
 
@@ -354,8 +377,3 @@ Validate and generate Product schema following Google's current requirements.
 
 Generate a PDF report? Use `/seo google report`
 ```
-
-## Write to shared data cache
-
-After completing all work, write a concise JSON summary to `.seo-cache/` when the workflow produced durable findings.
-Use the schemas and naming rules in `../seo/references/shared-data-cache.md`; include at least `cache_type`, `analyzed_at`, source URL/domain, key findings, issues, recommendations, and tool limitations. Add `.seo-cache/` to `.gitignore` if it is missing.
