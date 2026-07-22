@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Google API credential management for Codex SEO.
+Google API credential management for Claude SEO.
 
 Loads and validates credentials for Google Search Console, PageSpeed Insights,
 CrUX, Indexing API, and GA4. Supports service accounts, OAuth web credentials
@@ -18,17 +18,13 @@ Usage:
 import argparse
 import json
 import os
+import re
 import sys
 import time
 from typing import Optional
-from urllib.parse import urlparse
 
-import requests
-
-CONFIG_PATH = os.path.expanduser("~/.config/codex-seo/google-api.json")
-TOKEN_PATH = os.path.expanduser("~/.config/codex-seo/oauth-token.json")
-LEGACY_CONFIG_PATH = os.path.expanduser("~/.config/claude-seo/google-api.json")
-LEGACY_TOKEN_PATH = os.path.expanduser("~/.config/claude-seo/oauth-token.json")
+CONFIG_PATH = os.path.expanduser("~/.config/claude-seo/google-api.json")
+TOKEN_PATH = os.path.expanduser("~/.config/claude-seo/oauth-token.json")
 
 # Service-to-scope mapping
 SCOPES = {
@@ -65,20 +61,39 @@ SERVICE_NAMES = {
     "ga4": "GA4 Data API v1beta",
 }
 
+_GOOGLE_API_KEY_PREFIX = "AI" + "za"
+_GOOGLE_API_KEY_RE = re.compile(_GOOGLE_API_KEY_PREFIX + r"[0-9A-Za-z_-]+")
+_GOOGLE_KEY_QUERY_RE = re.compile(r"([?&])key=[^&\s'\"<>)]*(&?)")
+_GOOGLE_KEY_BARE_RE = re.compile(r"\bkey=[^&\s'\"<>)]*")
 
-def _first_existing_path(*paths: str) -> str:
-    """Return the first existing path, or the first candidate if none exist."""
-    for path in paths:
-        if os.path.exists(path):
-            return path
-    return paths[0]
+
+def google_api_key_headers(api_key: str) -> dict:
+    """Return the canonical header form for Google API key auth."""
+    return {"X-Goog-Api-Key": api_key}
+
+
+def redact_google_api_key(value: object) -> str:
+    """Remove Google API keys from exception/output strings."""
+    text = str(value)
+    def drop_query_key(match: re.Match) -> str:
+        separator, trailing_amp = match.groups()
+        if separator == "?" and trailing_amp:
+            return "?"
+        if separator == "&" and trailing_amp:
+            return "&"
+        return ""
+
+    text = _GOOGLE_KEY_QUERY_RE.sub(drop_query_key, text)
+    text = text.replace("?&", "?")
+    text = _GOOGLE_KEY_BARE_RE.sub("google_api_key_redacted", text)
+    return _GOOGLE_API_KEY_RE.sub("GOOGLE_API_KEY_REDACTED", text)
 
 
 def load_config() -> dict:
     """
     Load configuration from config file with environment variable fallbacks.
 
-    Reads ~/.config/codex-seo/google-api.json first. Any missing fields
+    Reads ~/.config/claude-seo/google-api.json first. Any missing fields
     are filled from environment variables.
 
     Returns:
@@ -92,11 +107,10 @@ def load_config() -> dict:
         "ga4_property_id": None,
     }
 
-    # Load from the Codex config file, with read-only fallback for old Claude SEO installs.
-    config_path = _first_existing_path(CONFIG_PATH, LEGACY_CONFIG_PATH)
-    if os.path.exists(config_path):
+    # Load from config file
+    if os.path.exists(CONFIG_PATH):
         try:
-            with open(config_path, "r") as f:
+            with open(CONFIG_PATH, "r") as f:
                 file_config = json.load(f)
             config.update({k: v for k, v in file_config.items() if v})
         except (json.JSONDecodeError, IOError) as e:
@@ -173,50 +187,119 @@ def _load_oauth_client(creds_path: str) -> Optional[dict]:
         return None
 
 
-def _load_oauth_token() -> Optional[dict]:
-    """Load saved OAuth token from TOKEN_PATH."""
-    token_path = _first_existing_path(TOKEN_PATH, LEGACY_TOKEN_PATH)
-    if not os.path.exists(token_path):
-        return None
+def _chmod_quiet(path: str, mode: int) -> None:
+    """Best-effort chmod that swallows errors (e.g. on filesystems that don't
+    support POSIX permissions). Used to remediate legacy 0o644 token files
+    written by v1.9.x without forcing the user to re-auth."""
     try:
-        with open(token_path, "r") as f:
+        os.chmod(path, mode)
+    except OSError:
+        pass
+
+
+def _load_oauth_token() -> Optional[dict]:
+    """Load saved OAuth token from TOKEN_PATH.
+
+    Also remediates legacy file permissions: v1.9.x wrote tokens with the
+    umask default (typically 0o644, world-readable). Each load forces the
+    file to 0o600 so users upgrading to v2 are protected without a re-auth.
+    """
+    if not os.path.exists(TOKEN_PATH):
+        return None
+    _chmod_quiet(TOKEN_PATH, 0o600)
+    try:
+        with open(TOKEN_PATH, "r") as f:
             return json.load(f)
     except (json.JSONDecodeError, IOError):
         return None
 
 
 def _save_oauth_token(token_data: dict):
-    """Save OAuth token to TOKEN_PATH."""
+    """Save OAuth token to TOKEN_PATH with secure (0o600) permissions.
+
+    Belt-and-suspenders sequence:
+        1. Pre-chmod any existing file (closes a v1.9.x umask=022 legacy).
+        2. ``os.open`` with explicit mode 0o600 (mode applies only to
+           newly-created files, ignored when the file already exists).
+        3. ``os.fchmod`` on the open fd to *force* 0o600 even if the
+           file pre-existed at step 2 — defeats the
+           os.path.exists()/os.open() TOCTOU race where an external
+           creator could install a 0o644 file between the two calls.
+
+    The token file is never world-readable, even briefly.
+    """
     os.makedirs(os.path.dirname(TOKEN_PATH), exist_ok=True)
-    with open(TOKEN_PATH, "w") as f:
+    if os.path.exists(TOKEN_PATH):
+        _chmod_quiet(TOKEN_PATH, 0o600)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    fd = os.open(TOKEN_PATH, flags, 0o600)
+    # fchmod on the open fd guarantees 0o600 even if the file existed at
+    # open time (in which case os.open's mode arg is ignored by the OS).
+    # os.fdopen takes ownership of fd — it closes the fd whether the
+    # write succeeds or raises, so there is no fd-leak path here.
+    try:
+        fchmod = getattr(os, "fchmod", None)
+        if fchmod is not None:
+            fchmod(fd, 0o600)
+    except OSError:
+        pass  # FS may not support fchmod (e.g. some Windows filesystems)
+    with os.fdopen(fd, "w") as f:
         json.dump(token_data, f, indent=2)
 
 
-def _google_token_uri(client: dict) -> str:
-    """Return a validated Google OAuth token endpoint."""
-    token_uri = client.get("token_uri") or "https://oauth2.googleapis.com/token"
-    parsed = urlparse(token_uri)
-    if parsed.scheme != "https" or parsed.netloc != "oauth2.googleapis.com" or parsed.path != "/token":
-        raise ValueError(f"Unsupported OAuth token endpoint: {token_uri}")
-    return token_uri
+def _persist_oauth_client_path(creds_path: str):
+    """
+    Persist the absolute path to the OAuth client_secret JSON file in the
+    user config so future refresh_token flows can locate the client_secret
+    without re-prompting. Stores the PATH only; never the secret itself.
+
+    Closes the bug where every OAuth user 401'd within 1 hour because the
+    refresh path could not find oauth_client_path in config.
+    """
+    abs_path = os.path.abspath(os.path.expanduser(creds_path))
+    os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
+    config = {}
+    if os.path.exists(CONFIG_PATH):
+        try:
+            with open(CONFIG_PATH, "r") as f:
+                config = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            config = {}
+    config["oauth_client_path"] = abs_path
+    # Atomic write: tempfile + replace
+    import tempfile
+    fd, tmp_path = tempfile.mkstemp(
+        dir=os.path.dirname(CONFIG_PATH), prefix=".google-api.", suffix=".tmp"
+    )
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(config, f, indent=2)
+        os.replace(tmp_path, CONFIG_PATH)
+    except Exception:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        raise
 
 
 def _refresh_oauth_token(client: dict, token_data: dict) -> Optional[dict]:
     """Refresh an expired OAuth token using the refresh_token."""
+    import urllib.parse
+    import urllib.request
+
     if not token_data.get("refresh_token"):
         return None
 
-    params = {
+    params = urllib.parse.urlencode({
         "client_id": client["client_id"],
         "client_secret": client["client_secret"],
         "refresh_token": token_data["refresh_token"],
         "grant_type": "refresh_token",
-    }
+    }).encode()
 
     try:
-        response = requests.post(_google_token_uri(client), data=params, timeout=30)
-        response.raise_for_status()
-        new_data = response.json()
+        req = urllib.request.Request(client.get("token_uri", "https://oauth2.googleapis.com/token"), data=params)
+        with urllib.request.urlopen(req) as resp:
+            new_data = json.loads(resp.read())
         token_data["access_token"] = new_data["access_token"]
         token_data["expires_at"] = time.time() + new_data.get("expires_in", 3600)
         _save_oauth_token(token_data)
@@ -346,23 +429,33 @@ def run_oauth_flow(creds_path: str):
         sys.exit(1)
 
     # Exchange code for tokens
-    _exchange_code(client, auth_code[0])
+    _exchange_code(client, auth_code[0], creds_path)
 
 
-def _exchange_code(client: dict, code: str):
-    """Exchange an authorization code for tokens."""
-    params = {
+def _exchange_code(client: dict, code: str, creds_path: Optional[str] = None):
+    """Exchange an authorization code for tokens.
+
+    If creds_path is provided, persist its absolute path to the user config
+    as 'oauth_client_path' so subsequent refresh flows can locate the
+    client_secret file without re-prompting.
+    """
+    import urllib.parse
+    import urllib.request
+
+    params = urllib.parse.urlencode({
         "code": code,
         "client_id": client["client_id"],
         "client_secret": client["client_secret"],
         "redirect_uri": OAUTH_REDIRECT_URI,
         "grant_type": "authorization_code",
-    }
+    }).encode()
 
     try:
-        response = requests.post(_google_token_uri(client), data=params, timeout=30)
-        response.raise_for_status()
-        token_data = response.json()
+        req = urllib.request.Request(
+            client.get("token_uri", "https://oauth2.googleapis.com/token"), data=params
+        )
+        with urllib.request.urlopen(req) as resp:
+            token_data = json.loads(resp.read())
         token_data["expires_at"] = time.time() + token_data.get("expires_in", 3600)
         token_data["client_id"] = client["client_id"]
         # SECURITY: Never store client_secret in token file. It stays in client_secret.json only.
@@ -370,9 +463,20 @@ def _exchange_code(client: dict, code: str):
         _save_oauth_token(token_data)
         print("OAuth token saved successfully!")
 
-        # Also save the OAuth client path to config
-        config = load_config()
-        # Don't overwrite existing config, just suggest
+        # Persist oauth_client_path so refresh works after process restart.
+        # This is the PATH, never the client_secret value itself.
+        if creds_path:
+            try:
+                _persist_oauth_client_path(creds_path)
+                print(f"OAuth client path persisted to {CONFIG_PATH}")
+            except Exception as e:
+                print(
+                    f"Warning: Could not persist oauth_client_path: {e}. "
+                    f"Add 'oauth_client_path' to {CONFIG_PATH} manually for "
+                    f"automatic token refresh.",
+                    file=sys.stderr,
+                )
+
         print(f"\nToken saved to: {TOKEN_PATH}")
     except Exception as e:
         print(f"Error exchanging authorization code: {e}", file=sys.stderr)
@@ -388,56 +492,22 @@ def validate_url(url: str) -> bool:
 
     Returns:
         True if the URL is a valid public http/https URL, False otherwise.
+
+    Note:
+        Back-compat wrapper around :func:`url_safety.validate_url`. The shared
+        module is the canonical implementation and adds DNS-rebinding-safe
+        helpers (``validate_url_strict``, ``safe_requests_get``) that
+        ``fetch_page.py`` and ``render_page.py`` use before opening sockets.
     """
-    import ipaddress
-    import socket
-    from urllib.parse import urlparse
+    # Lazy import: avoids a hard requirement on url_safety for callers that
+    # only need google_auth's other helpers (e.g. token refresh) and keeps
+    # the import graph one-directional.
+    _scripts_dir = os.path.dirname(os.path.abspath(__file__))
+    if _scripts_dir not in sys.path:
+        sys.path.insert(0, _scripts_dir)
+    from url_safety import validate_url as _validate_url
 
-    parsed = urlparse(url)
-    if parsed.scheme not in ("http", "https"):
-        return False
-    if not parsed.hostname:
-        return False
-    hostname = parsed.hostname.strip().lower().rstrip(".")
-    blocked = {
-        "localhost",
-        "metadata.google.internal",
-        "metadata",
-    }
-    if hostname in blocked:
-        return False
-
-    def is_blocked_ip(value: str) -> bool:
-        ip = ipaddress.ip_address(value)
-        return any(
-            [
-                ip.is_private,
-                ip.is_loopback,
-                ip.is_link_local,
-                ip.is_reserved,
-                ip.is_multicast,
-                ip.is_unspecified,
-            ]
-        )
-
-    try:
-        if is_blocked_ip(hostname):
-            return False
-    except ValueError:
-        pass
-
-    try:
-        infos = socket.getaddrinfo(hostname, None)
-    except socket.gaierror:
-        return False
-    for info in infos:
-        address = info[4][0]
-        try:
-            if is_blocked_ip(address):
-                return False
-        except ValueError:
-            return False
-    return True
+    return _validate_url(url)
 
 
 def get_api_key() -> Optional[str]:
@@ -690,12 +760,12 @@ Google SEO API Setup Instructions
      Paste email, set Viewer role
 
 6. CREATE CONFIG FILE
-   mkdir -p ~/.config/codex-seo
-   Save to ~/.config/codex-seo/google-api.json:
+   mkdir -p ~/.config/claude-seo
+   Save to ~/.config/claude-seo/google-api.json:
 
    {
      "service_account_path": "/path/to/service_account.json",
-     "api_key": "AIzaSy...",
+     "api_key": "<GOOGLE_API_KEY>",
      "default_property": "sc-domain:example.com",
      "ga4_property_id": "properties/123456789"
    }
@@ -713,7 +783,7 @@ ENVIRONMENT VARIABLE ALTERNATIVES:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Google API credential management for Codex SEO"
+        description="Google API credential management for Claude SEO"
     )
     parser.add_argument(
         "--check",
@@ -771,7 +841,7 @@ def main():
             sys.exit(1)
         client = _load_oauth_client(args.creds)
         if client:
-            _exchange_code(client, args.code)
+            _exchange_code(client, args.code, args.creds)
         return
 
     if args.setup:

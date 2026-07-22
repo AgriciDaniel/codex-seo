@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Normalize DataForSEO API responses for consistent consumption by codex-seo skills.
+Normalize DataForSEO API responses for consistent consumption by claude-seo skills.
 
 Provides generic helpers (extract_items, truncate_for_context, format_table) and
 per-module normalizers (merchant, social, reviews, etc.).
@@ -262,6 +262,8 @@ def normalize_merchant(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     Returns:
         List of normalized product dicts.
     """
+    if not items:
+        return []
     normalized = []
     for item in items:
         # Handle rating as dict or scalar
@@ -318,6 +320,8 @@ def normalize_social(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     Returns:
         List of normalized social signal dicts.
     """
+    if not items:
+        return []
     normalized = []
     for item in items:
         signal = {
@@ -353,6 +357,8 @@ def normalize_reviews(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     Returns:
         List of normalized review dicts.
     """
+    if not items:
+        return []
     normalized = []
     for item in items:
         review = {
@@ -374,7 +380,7 @@ def normalize_reviews(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Normalize DataForSEO API responses for codex-seo skills"
+        description="Normalize DataForSEO API responses for claude-seo skills"
     )
     parser.add_argument("input", help="Input JSON file (use - for stdin)")
     parser.add_argument(

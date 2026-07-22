@@ -1,37 +1,23 @@
 [project]
 name = "codex-seo"
-version = "1.9.6+codex.5"
-description = "Comprehensive SEO analysis skill suite for Codex"
+version = "2.2.4"
+description = "Comprehensive SEO analysis skill for Claude Code"
 requires-python = ">=3.10"
 license = "MIT"
 readme = "README.md"
-keywords = [
-  "codex",
-  "codex-skills",
-  "seo",
-  "ai-seo",
-  "technical-seo",
-  "core-web-vitals",
-  "schema-markup",
-  "dataforseo",
-  "mcp",
-]
 authors = [
-  { name = "AgriciDaniel" },
+  {name = "Daniel Agrici"}
 ]
-classifiers = [
-  "Development Status :: 4 - Beta",
-  "Intended Audience :: Developers",
-  "Intended Audience :: Information Technology",
-  "License :: OSI Approved :: MIT License",
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Topic :: Internet :: WWW/HTTP :: Site Management",
-  "Topic :: Software Development :: Libraries :: Application Frameworks",
-]
+keywords = ["seo", "claude-code", "ai-tools", "schema-markup", "e-e-a-t", "geo"]
 
 [project.urls]
 Homepage = "https://github.com/AgriciDaniel/codex-seo"
 Repository = "https://github.com/AgriciDaniel/codex-seo"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]

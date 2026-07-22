@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Post-edit schema validation hook for Codex.
+"""Post-edit schema validation hook for Claude Code.
 
 Validates JSON-LD schema after file edits. Returns exit code 2 to block
 if critical validation errors found.
 
-Hook configuration in ~/.codex/settings.json:
+Hook configuration in ~/.claude/settings.json:
 {
   "hooks": {
     "PostToolUse": [
@@ -13,8 +13,12 @@ Hook configuration in ~/.codex/settings.json:
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ~/.codex/skills/seo/hooks/validate-schema.py \"$FILE_PATH\"",
-            "exitCodes": { "2": "block" }
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/run-python-hook.js",
+              "${CLAUDE_PLUGIN_ROOT}/hooks/validate-schema.py",
+              "${tool_input.file_path}"
+            ]
           }
         ]
       }
@@ -27,9 +31,9 @@ checks if the file contains schema markup before validating.
 """
 
 import json
+import os
 import re
 import sys
-import os
 from typing import List
 
 
@@ -40,14 +44,14 @@ def validate_jsonld(content: str) -> List[str]:
     blocks = re.findall(pattern, content, re.DOTALL | re.IGNORECASE)
 
     if not blocks:
-        return []  # No schema found — not an error
+        return []  # No schema found; not an error
 
     for i, block in enumerate(blocks, 1):
         block = block.strip()
         try:
             data = json.loads(block)
         except json.JSONDecodeError as e:
-            errors.append(f"Block {i}: Invalid JSON — {e}")
+            errors.append(f"Block {i}: Invalid JSON; {e}")
             continue
 
         if isinstance(data, list):
@@ -100,32 +104,63 @@ def _validate_schema_object(obj: dict, block_num: int) -> List[str]:
         "CourseInfo": "retired June 2025",
         "EstimatedSalary": "retired June 2025",
         "LearningVideo": "retired June 2025",
-        "ClaimReview": "retired June 2025 — fact-check rich results discontinued",
-        "VehicleListing": "retired June 2025 — vehicle listing structured data discontinued",
+        "ClaimReview": "retired June 2025; fact-check rich results discontinued",
+        "VehicleListing": "retired June 2025; vehicle listing structured data discontinued",
     }
     if schema_type in deprecated:
         errors.append(f"{prefix}: @type '{schema_type}' is {deprecated[schema_type]}")
 
-    # Check for restricted types used incorrectly
-    restricted = {"FAQPage": "restricted to government and healthcare sites only (Aug 2023)"}
+    # Check for restricted types used incorrectly.
+    # FAQPage is intentionally NOT flagged: Google retired FAQ rich results for
+    # all sites (May 7, 2026), but FAQPage remains a valid Schema.org type.
+    # This project makes no claim of a confirmed AI or ranking benefit.
+    restricted: dict = {}
     if schema_type in restricted:
-        errors.append(f"{prefix}: @type '{schema_type}' is {restricted[schema_type]} — verify site qualifies")
+        errors.append(f"{prefix}: @type '{schema_type}' is {restricted[schema_type]}; verify site qualifies")
 
     return errors
 
 
+def _resolve_filepath():
+    """File path from argv (exec-form template) or the stdin hook-event JSON.
+
+    Claude Code's documented hook contract delivers the event as JSON on stdin;
+    the argv template is kept for harnesses that substitute it. Whichever yields
+    an existing file wins.
+    """
+    if len(sys.argv) > 1 and os.path.isfile(sys.argv[1]):
+        return sys.argv[1]
+    try:
+        if not sys.stdin.isatty():
+            raw = sys.stdin.read()
+            if raw.strip():
+                event = json.loads(raw)
+                fp = (event.get("tool_input") or {}).get("file_path")
+                if fp and os.path.isfile(fp):
+                    return fp
+    except (OSError, ValueError):
+        pass
+    return None
+
+
 def main():
-    if len(sys.argv) < 2:
-        sys.exit(0)
-
-    filepath = sys.argv[1]
-
-    if not os.path.isfile(filepath):
+    filepath = _resolve_filepath()
+    if not filepath:
         sys.exit(0)
 
     # Only validate HTML-like files
     valid_extensions = (".html", ".htm", ".jsx", ".tsx", ".vue", ".svelte", ".php", ".ejs")
-    if not filepath.endswith(valid_extensions):
+    if not filepath.lower().endswith(valid_extensions):
+        sys.exit(0)
+
+    # File-size guard: skip files >10MB to bound memory + hook latency.
+    # Real source files almost never exceed this; bigger inputs are typically
+    # generated, minified bundles or accidental binary writes.
+    MAX_FILE_BYTES = 10 * 1024 * 1024  # 10 MiB
+    try:
+        if os.path.getsize(filepath) > MAX_FILE_BYTES:
+            sys.exit(0)
+    except OSError:
         sys.exit(0)
 
     try:
@@ -155,7 +190,7 @@ def main():
             print(f"  - {e}")
         sys.exit(2)  # Block the edit
 
-    sys.exit(1)  # Warnings only — proceed
+    sys.exit(1)  # Warnings only; proceed
 
 
 if __name__ == "__main__":

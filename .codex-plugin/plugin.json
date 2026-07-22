@@ -1,6 +1,6 @@
 {
   "name": "codex-seo",
-  "version": "1.9.6+codex.5",
+  "version": "2.2.4-codex.0",
   "description": "Comprehensive SEO analysis skill suite for Codex. Includes technical SEO, content quality, schema markup, image optimization, sitemap architecture, GEO/AEO, backlinks, local SEO, maps intelligence, semantic clustering, SXO, drift monitoring, e-commerce SEO, Google APIs, and deterministic reporting workflows.",
   "author": {
     "name": "AgriciDaniel",

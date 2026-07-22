@@ -22,7 +22,7 @@ For each audited page, evaluate:
 
 ## Output Format
 
-Match existing codex-seo patterns:
+Match existing claude-seo patterns:
 
 ### Image Audit Summary
 

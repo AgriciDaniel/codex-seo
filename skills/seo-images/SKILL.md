@@ -7,31 +7,16 @@ description: >
   IPTC/XMP metadata injection). Use when user says "image optimization",
   "alt text", "image SEO", "image size", "image audit", "optimize images",
   "image metadata", "image SERP", "convert to webp", or "image file optimize".
-user-invokable: true
+user-invocable: true
 argument-hint: "[url]"
 license: MIT
 metadata:
   author: AgriciDaniel
-  version: "1.9.6"
+  version: "2.2.4"
   category: seo
 ---
 
 # Image Optimization Analysis
-## Shared Data Cache
-
-**Step 0 -- Check shared data cache:**
-
-Before gathering, check `.seo-cache/` for reusable context from related SEO skills.
-Reference: `../seo/references/shared-data-cache.md` for schemas and dependency map.
-
-Check these cache files when present:
-- `.seo-cache/site-meta.json` for domain, business type, industry, and crawl context
-- `.seo-cache/audit-scores.json` for prior full-audit priorities
-- `.seo-cache/pages/{url-slug}/page-analysis.json` for page-level context when a URL is provided
-
-- If found: parse and use clearly valid fields (note "Using cached [X] from [date]")
-- If missing, corrupt, or irrelevant: continue with fresh evidence
-- If the user says "refresh" or "re-run": ignore cache reads and overwrite on write
 
 ## Checks
 
@@ -90,7 +75,7 @@ The browser will use the first supported format. Current browser support: AVIF 9
 
 #### JPEG XL: Emerging Format
 
-In November 2025, Google's Chromium team reversed its 2022 decision and announced it will restore JPEG XL support in Chrome using a Rust-based decoder. The implementation is feature-complete but not yet in Chrome stable. JPEG XL offers lossless JPEG recompression (~20% savings with zero quality loss) and competitive lossy compression. Not yet practical for web deployment, but worth monitoring for future adoption.
+Third-party reporting and Wikipedia describe a Rust-based JPEG XL decoder as shipped in Chrome 145 stable (2026-02-10) behind the `chrome://flags/#enable-jxl-image-format` flag, not enabled by default; no Google-owned confirmation was retrieved in the fact pack. Because default support is not confirmed, it is not yet practical for production web delivery. Keep serving AVIF/WebP with JPEG fallback and monitor.
 
 ### Responsive Images
 - `srcset` attribute for multiple sizes
@@ -118,6 +103,23 @@ In November 2025, Google's Chromium team reversed its 2022 decision and announce
 <!-- Above fold - eager load (default) -->
 <img src="hero.jpg" alt="Hero image">
 ```
+
+#### Detected lazy-loader methods (`lazy_method` field)
+
+`scripts/parse_html.py` classifies each image's lazy-loading mechanism via the
+`lazy_method` field on every image entry. Five values:
+
+| `lazy_method` | Signal detected | Common stack |
+|---|---|---|
+| `native` | `loading="lazy"` HTML attribute | Modern browsers, plain HTML |
+| `perfmatters` | `data-perfmatters-src`/`-srcset` OR class `perfmatters-lazy` | WordPress + Perfmatters plugin |
+| `ewww` | `data-ewww-src` / `data-eio` OR class `lazyload-eio` | WordPress + EWWW Image Optimizer |
+| `js-generic` | `data-src` / `data-lazy-src` / `data-original` / `data-srcset` OR class `lazyload`/`lazyloaded`/`lazy` | Lazysizes, vanilla-lazyload, jQuery plugins |
+| `none` | Neither attribute nor class signal | Page is not lazy-loading this image |
+
+When auditing image SEO, report `lazy_method` alongside `loading` so users know
+whether their site is using a JS-driven lazy-loader (in which case the native
+`loading="lazy"` attribute is intentionally absent, that is not a regression).
 
 ### `fetchpriority="high"` for LCP Images
 
@@ -259,10 +261,10 @@ convert input.jpg -resize 800x -quality 82 image-800.webp
 convert input.jpg -resize 1200x -quality 82 image-1200.webp
 ```
 
-### Metadata Injection (IPTC for Google Rich Results)
+### Metadata Injection (IPTC for Google Images Display)
 
 Google Images displays IPTC Creator, Credit Line, and Copyright in search results.
-This is **NOT a ranking factor** but improves rich result display and brand attribution.
+This is **NOT a ranking factor** but can improve Google Images display and brand attribution.
 
 **With exiftool (preferred):**
 ```bash
@@ -301,8 +303,89 @@ convert input.jpg \
   output.jpg
 ```
 
-**IMPORTANT:** WebP supports EXIF and XMP but NOT IPTC natively. For WebP files,
+Note: WebP supports EXIF and XMP but not IPTC natively. For WebP files,
 use XMP fields instead of IPTC. exiftool handles this conversion automatically.
+
+### AI-Generated Images: `DigitalSourceType` (Merchant Center requirement)
+
+For product images produced by generative AI, **Google Merchant Center requires**
+IPTC `DigitalSourceType: TrainedAlgorithmicMedia` metadata. This is an
+operational policy requirement, not a ranking factor: feeds missing this label
+on AI-generated imagery can be disapproved.
+
+Primary source (Merchant Center AI-generated content policy):
+https://support.google.com/merchants/answer/14743464
+(the ai-optimization-guide does not document DigitalSourceType/IPTC/Merchant labeling.)
+
+**Audit command:**
+
+```bash
+# Audit a directory for the IPTC label (counts: missing, ai, captured, etc.)
+python ~/.codex/skills/seo/scripts/iptc_ai_label.py audit ./images/ --json
+
+# Audit a single image
+python ~/.codex/skills/seo/scripts/iptc_ai_label.py audit ./hero.webp --json
+
+# Inject the AI label into an image
+python ~/.codex/skills/seo/scripts/iptc_ai_label.py inject ./ai-hero.webp \
+    --source-type trainedAlgorithmicMedia
+
+# Other vocabulary values:
+#   compositeSynthetic               (mix of captured + AI elements)
+#   algorithmicMedia                 (created purely by algorithm, NOT from sampled training data)
+#   compositeWithTrainedAlgorithmicMedia (e.g. AI inpainting/outpainting over real media)
+#   digitalCapture                   (fully captured photograph)
+```
+
+**Raw exiftool equivalents** (for ad-hoc usage):
+
+```bash
+# Inject manually
+exiftool \
+  -XMP-iptcExt:DigitalSourceType="https://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia" \
+  ai-generated-product.jpg
+
+# Audit: find images missing the label across a directory
+exiftool -if 'not $XMP-iptcExt:DigitalSourceType' \
+  -filename -DigitalSourceType *.jpg *.webp *.png
+```
+
+Google extracts these IPTC `DigitalSourceType` values:
+- `trainedAlgorithmicMedia`: fully AI-generated (use this for diffusion-model
+  product imagery)
+- `compositeSynthetic`: mixes captured + AI-generated elements
+- `algorithmicMedia`: created purely by an algorithm, **not** from sampled
+  training data
+- `compositeWithTrainedAlgorithmicMedia`: composite of trained algorithmic
+  media + other media (e.g. AI inpainting/outpainting over a real photo)
+- `digitalCapture`: fully captured photograph (note: `digitalCapture` is **not**
+  on Google's extracted-values list, but is a valid IPTC value)
+
+> **Provenance signals (consumer-facing):** **SynthID** watermarks and **C2PA**
+> Content Credentials are emerging signals for AI media identification. Treat
+> product-surface coverage as subject to change unless verified from a current
+> Google-owned source.
+> This is detection/transparency, **not** an extra required Merchant feed field
+> beyond IPTC DigitalSourceType.
+
+> **Licensable images:** to earn the Licensable badge, supply EITHER structured
+> data (`ImageObject` with the `license` property + `acquireLicensePage` for the
+> "Get this image" link) OR embedded IPTC photo metadata (Licensor URL / Web
+> Statement of Rights). Cross-link `seo-schema` for the ImageObject markup.
+
+> **Discovery note:** image discovery now includes **visual search fan-out**
+> across Lens / AI Mode / Circle to Search (Gemini multimodal scene/object
+> understanding), so images surface via scene, objects, and materials, not alt
+> text alone. No new published image-SEO lever yet; keep descriptive alt text +
+> clean structured data.
+
+When `/seo images optimize` is run on AI-generated assets, prompt the user to
+confirm the source type and inject the matching IPTC value automatically.
+
+For **AI-generated product titles and descriptions**, Google Merchant Center
+also requires the AI-generated text to be separately specified and labeled in
+the feed. This is enforced at the feed layer, not the page layer, flag this
+in cross-reference with `seo-ecommerce`.
 
 ### Metadata Audit
 
@@ -349,8 +432,3 @@ For maximum image SEO, run this pipeline on each image:
 | exiftool not installed | Fall back to ImageMagick for metadata. Recommend: `sudo apt install libimage-exiftool-perl` |
 | cwebp not installed | Fall back to ImageMagick or FFmpeg for WebP conversion. Recommend: `sudo apt install webp` |
 | DataForSEO MCP not available | Skip Image SERP Analysis section. Note extension is not installed. |
-
-## Write to shared data cache
-
-After completing all work, write a concise JSON summary to `.seo-cache/` when the workflow produced durable findings.
-Use the schemas and naming rules in `../seo/references/shared-data-cache.md`; include at least `cache_type`, `analyzed_at`, source URL/domain, key findings, issues, recommendations, and tool limitations. Add `.seo-cache/` to `.gitignore` if it is missing.

@@ -16,7 +16,7 @@ import sys
 SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SCRIPTS_DIR)
 
-from drift_baseline import drift_db_path, init_db, normalize_url, url_hash  # noqa: E402
+from drift_baseline import DB_PATH, init_db, normalize_url, url_hash  # noqa: E402
 
 
 def get_history(url: str, limit: int = 20) -> dict:
@@ -33,7 +33,7 @@ def get_history(url: str, limit: int = 20) -> dict:
     norm_url = normalize_url(url)
     uhash = url_hash(url)
 
-    if not os.path.exists(drift_db_path()):
+    if not os.path.exists(DB_PATH):
         return {"url": norm_url, "baselines": [], "comparisons": [], "note": "No database found. Run `drift baseline` first."}
 
     conn = init_db()

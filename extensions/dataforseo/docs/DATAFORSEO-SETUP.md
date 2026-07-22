@@ -1,6 +1,6 @@
 # DataForSEO Account Setup
 
-Step-by-step guide to getting DataForSEO API credentials for the Codex SEO extension.
+Step-by-step guide to getting DataForSEO API credentials for the Claude SEO extension.
 
 ## 1. Create Account
 
@@ -29,7 +29,7 @@ DataForSEO uses a credit-based system:
 - Credits are purchased in advance
 - Monitor usage at [app.dataforseo.com/dashboard](https://app.dataforseo.com/dashboard)
 
-**Typical costs per call:**
+**Typical costs per call, verified as of 2026-07-10:**
 
 | Endpoint Type | Approximate Cost |
 |--------------|-----------------|
@@ -38,11 +38,11 @@ DataForSEO uses a credit-based system:
 | Backlink summary | $0.002-0.005 |
 | Backlink list | $0.005-0.01 |
 | On-page crawl (per page) | $0.01-0.05 |
-| AI optimization (per call) | $0.01 |
+| AI optimization (per call) | $0.05 |
 
 ## 4. Manual MCP Configuration
 
-If the installer's auto-configuration fails, add this to `~/.codex/settings.json`:
+If the installer's auto-configuration fails, add this to `~/.claude/settings.json`:
 
 ```json
 {
@@ -51,10 +51,10 @@ If the installer's auto-configuration fails, add this to `~/.codex/settings.json
       "command": "npx",
       "args": ["-y", "dataforseo-mcp-server"],
       "env": {
-        "DATAFORSEO_USERNAME": "your-email@example.com",
+        "DATAFORSEO_USERNAME": "<account-username>",
         "DATAFORSEO_PASSWORD": "your-api-password",
         "ENABLED_MODULES": "SERP,KEYWORDS_DATA,ONPAGE,DATAFORSEO_LABS,BACKLINKS,DOMAIN_ANALYTICS,BUSINESS_DATA,CONTENT_ANALYSIS,AI_OPTIMIZATION",
-        "FIELD_CONFIG_PATH": "/home/youruser/.codex/skills/seo/dataforseo-field-config.json"
+        "FIELD_CONFIG_PATH": "/path/to/dataforseo-field-config.json"
       }
     }
   }
@@ -65,7 +65,7 @@ Replace the username, password, and FIELD_CONFIG_PATH with your actual values.
 
 ## 5. Verify Installation
 
-After installing, start Codex and run:
+After installing, start Claude Code and run:
 
 ```
 /seo dataforseo serp test query
