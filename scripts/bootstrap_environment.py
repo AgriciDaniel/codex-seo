@@ -95,6 +95,14 @@ def parse_json_stdout(step: dict[str, Any]) -> dict[str, Any] | None:
     try:
         return json.loads(step["stdout"])
     except json.JSONDecodeError:
+        # Extract JSON object from stdout that may contain warning text before JSON
+        text = step["stdout"]
+        idx = text.find("{")
+        if idx != -1:
+            try:
+                return json.loads(text[idx:])
+            except json.JSONDecodeError:
+                pass
         return None
 
 

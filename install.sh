@@ -49,7 +49,7 @@ try:
 except Exception:
     sys.exit(0)
 
-notes = payload.get("verification", {}).get("notes", [])
+notes = (payload.get("verification") or {}).get("notes", [])
 for note in notes[:5]:
     print(f"[ERROR] {note}")
 
