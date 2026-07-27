@@ -4,31 +4,34 @@ description: >
   Content quality and E-E-A-T analysis with AI citation readiness assessment.
   Use when user says "content quality", "E-E-A-T", "content analysis",
   "readability check", "thin content", or "content audit".
-user-invokable: true
+user-invocable: true
 argument-hint: "[url]"
 license: MIT
 metadata:
   author: AgriciDaniel
-  version: "1.9.6"
+  version: "2.2.4"
   category: seo
 ---
 
 # Content Quality & E-E-A-T Analysis
-## Shared Data Cache
 
-**Step 0 -- Check shared data cache:**
+## Google's "Who / How / Why" Test (canonical heuristic)
 
-Before gathering, check `.seo-cache/` for reusable context from related SEO skills.
-Reference: `../seo/references/shared-data-cache.md` for schemas and dependency map.
+Before scoring E-E-A-T sub-factors, every page audit should pass Google's
+own three-question heuristic from the helpful-content guide:
 
-Check these cache files when present:
-- `.seo-cache/site-meta.json` for domain, business type, industry, and crawl context
-- `.seo-cache/audit-scores.json` for prior full-audit priorities
-- `.seo-cache/pages/{url-slug}/page-analysis.json` for page-level context when a URL is provided
+| Question | What to look for |
+|---|---|
+| **Who** created it? | Visible byline, author bio page, professional credentials. Required where readers expect it; non-negotiable for YMYL. |
+| **How** was it created? | Process disclosure where readers would reasonably ask, especially for AI-assisted content. Original research / first-hand evidence / lived experience. |
+| **Why** does it exist? | "To help people" rather than "to attract search clicks." Watch for niche entry without expertise, content churn for freshness signals, content written to a word-count target. |
 
-- If found: parse and use clearly valid fields (note "Using cached [X] from [date]")
-- If missing, corrupt, or irrelevant: continue with fresh evidence
-- If the user says "refresh" or "re-run": ignore cache reads and overwrite on write
+Primary source:
+https://developers.google.com/search/docs/fundamentals/creating-helpful-content
+
+When all three answers are weak, the page is at risk under the core ranking
+system's helpfulness signals (formerly the standalone Helpful Content System,
+merged into core during the March 2024 update).
 
 ## E-E-A-T Framework (updated Sept 2025 QRG)
 
@@ -112,7 +115,7 @@ Compare against page type minimums:
 
 ## AI Content Assessment (Sept 2025 QRG addition)
 
-Google's raters now formally assess whether content appears AI-generated.
+Google's raters assess low-quality, scaled, copied, or AI-generated main content patterns rather than AI authorship as a standalone issue.
 
 ### Acceptable AI Content
 - Demonstrates genuine E-E-A-T
@@ -127,7 +130,11 @@ Google's raters now formally assess whether content appears AI-generated.
 - No author attribution
 - Factual inaccuracies
 
-> **Helpful Content System (March 2024):** The Helpful Content System was merged into Google's core ranking algorithm during the March 2024 core update. It no longer operates as a standalone classifier. Helpfulness signals are now weighted within every core update. The same principles apply (people-first content, demonstrating E-E-A-T, satisfying user intent), but enforcement is continuous rather than through separate HCU updates.
+> **Helpful Content System (March 2024):** The Helpful Content System was merged into Google's core ranking algorithm during the March 2024 core update. It no longer operates as a standalone classifier. Helpfulness signals are now weighted within every core update. The same principles apply (people-first content, demonstrating E-E-A-T, satisfying user intent), but enforcement is continuous rather than through separate HCU updates. Google now also documents **continuous, smaller unannounced core updates** between major ones (changelog 2025-12-09).
+
+> **Gen-AI optimization is SEO (Google docs, 2026-06-29):** the official "optimizing for generative AI features" guide states you do **not** need new AI files, markup, Markdown, content chunking, or AI-specific rewrites; chasing inauthentic "mentions" is unhelpful. AEO/GEO is rebranded SEO rooted in core ranking/quality.
+
+> **Honest scoping (Google docs, 2026-06-05):** per "Using third-party SEO tools, services, and advice," no tool guarantees rankings and third-party tools have no access to Google's internal ranking data. codex-seo's scores are **heuristics**, not Google-internal signals, so say so in reports, and validate GEO/AEO findings against Google's official guidance (Search Console is the first-party source).
 
 ## AI Citation Readiness (GEO signals)
 
@@ -142,18 +149,18 @@ Optimize for AI search engines (ChatGPT, Perplexity, Google AI Overviews):
 
 ### AI Search Visibility & GEO (2025-2026)
 
-**Google AI Mode** launched publicly in May 2025 as a separate tab in Google Search, available in 180+ countries. Unlike AI Overviews (which appear above organic results), AI Mode provides a fully conversational search experience with **zero organic blue links**, making AI citation the only visibility mechanism.
+**Google AI Mode** is Google's conversational AI search surface. Google's last official model naming for AI Mode / AI Overviews is a custom version of **Gemini 2.5**. Treat third-party AI Mode usage, citation, and link-share figures as methodology-dependent unless primary-sourced, and optimize for both AI Mode and AI Overviews (see the `seo-geo` skill).
 
 **Key optimization strategies for AI citation:**
 - **Structured answers:** Clear question-answer formats, definition patterns, and step-by-step instructions that AI systems can extract and cite
 - **First-party data:** Original research, statistics, case studies, and unique datasets are highly cited by AI systems
-- **Schema markup:** Article, FAQ (for non-Google AI platforms), and structured content schemas help AI systems parse and attribute content
+- **Schema markup:** Article and other relevant structured content. FAQPage no longer produces Google FAQ rich results; use QAPage only for genuine user Q&A where appropriate
 - **Topical authority:** AI systems preferentially cite sources that demonstrate deep expertise. Build content clusters, not isolated pages
 - **Entity clarity:** Ensure brand, authors, and key concepts are clearly defined with structured data (Organization, Person schema)
 - **Multi-platform tracking:** Monitor visibility across Google AI Overviews, AI Mode, ChatGPT, Perplexity, and Bing Copilot, not just traditional rankings. Treat AI citation as a standalone KPI alongside organic rankings and traffic.
 
 **Generative Engine Optimization (GEO):**
-GEO is the emerging discipline of optimizing content specifically for AI-generated answers. Key GEO signals include: quotability (clear, concise extractable facts), attribution (source citations within your content), structure (well-organized heading hierarchy), and freshness (regularly updated data). Cross-reference the `seo-geo` skill for detailed GEO workflows.
+Per Google's AI optimization guide, "AEO" and "GEO" are rebranded labels for SEO: AI Overviews and AI Mode are grounded in the same ranking and quality systems as classic Search. The optimization signals that matter (quotability, attribution, heading hierarchy, freshness) are SEO fundamentals applied to AI-search surfaces, not a separate discipline. Cross-reference the `seo-geo` skill for detailed workflows; both surfaces share the primary-source synthesis in `skills/seo-geo/references/google-ai-optimization-guide.md`.
 
 ## Content Freshness
 
@@ -168,10 +175,17 @@ GEO is the emerging discipline of optimizing content specifically for AI-generat
 ### E-E-A-T Breakdown
 | Factor | Score | Key Signals |
 |--------|-------|-------------|
-| Experience | XX/25 | ... |
+| Experience | XX/20 | ... |
 | Expertise | XX/25 | ... |
 | Authoritativeness | XX/25 | ... |
-| Trustworthiness | XX/25 | ... |
+| Trustworthiness | XX/30 | ... |
+
+> Weights are **this skill's own scoring model**, ordered to reflect Google's
+> stated hierarchy: **Trust is most important** (30), then Expertise/
+> Authoritativeness (25 each), then Experience (20); maxima sum to 100. Google
+> publishes no numeric E-E-A-T weights (only that trust is most important), so
+> treat the split as our internal model. Do not use an equal 25/25/25/25 split
+> (it contradicts Google's "trust is most important").
 
 ### AI Citation Readiness: XX/100
 
@@ -192,9 +206,4 @@ If DataForSEO MCP tools are available, use `kw_data_google_ads_search_volume` fo
 
 ## FLOW Framework Integration
 
-For prompt-guided content optimization, use `/seo flow optimize <url>` and `/seo flow win <url>` — FLOW's optimize and win prompts provide structured E-E-A-T improvement and BOFU conversion workflows.
-
-## Write to shared data cache
-
-After completing all work, write a concise JSON summary to `.seo-cache/` when the workflow produced durable findings.
-Use the schemas and naming rules in `../seo/references/shared-data-cache.md`; include at least `cache_type`, `analyzed_at`, source URL/domain, key findings, issues, recommendations, and tool limitations. Add `.seo-cache/` to `.gitignore` if it is missing.
+For prompt-guided content optimization, use `/seo flow optimize <url>` and `/seo flow win <url>`: FLOW's optimize and win prompts provide structured E-E-A-T improvement and BOFU conversion workflows.

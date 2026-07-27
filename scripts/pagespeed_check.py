@@ -26,12 +26,24 @@ except ImportError:
 
 # Import credential helper (same directory)
 try:
-    from google_auth import get_api_key, load_config, validate_url
+    from google_auth import (
+        get_api_key,
+        google_api_key_headers,
+        load_config,
+        redact_google_api_key,
+        validate_url,
+    )
 except ImportError:
     # Fallback: try relative import from scripts/
     import os
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from google_auth import get_api_key, load_config, validate_url
+    from google_auth import (
+        get_api_key,
+        google_api_key_headers,
+        load_config,
+        redact_google_api_key,
+        validate_url,
+    )
 
 PSI_ENDPOINT = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
 CRUX_ENDPOINT = "https://chromeuxreport.googleapis.com/v1/records:queryRecord"
@@ -98,6 +110,7 @@ def run_pagespeed(
         "passed_audits_count": 0,
         "seo_audits": [],
         "accessibility_audits": [],
+        "audit_details": {},
         "analysis_timestamp": None,
         "error": None,
     }
@@ -118,11 +131,10 @@ def run_pagespeed(
         if isinstance(params["category"], list):
             params["category"].append(cat)
 
-    if api_key:
-        params["key"] = api_key
+    headers = google_api_key_headers(api_key) if api_key else None
 
     try:
-        resp = requests.get(PSI_ENDPOINT, params=params, timeout=120)
+        resp = requests.get(PSI_ENDPOINT, params=params, headers=headers, timeout=120)
         resp.raise_for_status()
         data = resp.json()
     except requests.exceptions.Timeout:
@@ -132,12 +144,12 @@ def run_pagespeed(
         if resp.status_code == 429:
             result["error"] = "PSI rate limit exceeded (240 QPM / 25,000 QPD). Wait and retry."
         elif resp.status_code == 400:
-            result["error"] = f"Invalid URL or parameters: {resp.text}"
+            result["error"] = f"Invalid URL or parameters: {redact_google_api_key(resp.text)}"
         else:
-            result["error"] = f"PSI API error {resp.status_code}: {e}"
+            result["error"] = f"PSI API error {resp.status_code}: {redact_google_api_key(e)}"
         return result
     except requests.exceptions.RequestException as e:
-        result["error"] = f"Request failed: {e}"
+        result["error"] = f"Request failed: {redact_google_api_key(e)}"
         return result
 
     result["analysis_timestamp"] = data.get("analysisUTCTimestamp")
@@ -340,7 +352,8 @@ def query_crux(
 
     try:
         resp = requests.post(
-            f"{CRUX_ENDPOINT}?key={api_key}",
+            CRUX_ENDPOINT,
+            headers=google_api_key_headers(api_key),
             json=body,
             timeout=30,
         )
@@ -360,7 +373,7 @@ def query_crux(
         resp.raise_for_status()
         data = resp.json()
     except requests.exceptions.RequestException as e:
-        result["error"] = f"CrUX API request failed: {e}"
+        result["error"] = f"CrUX API request failed: {redact_google_api_key(e)}"
         return result
 
     record = data.get("record", {})

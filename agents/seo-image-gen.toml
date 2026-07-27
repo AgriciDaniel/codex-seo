@@ -1,6 +1,6 @@
 name = "seo-image-gen"
 description = "SEO image analyst. Audits existing OG/social preview images, identifies missing or low-quality images, and creates an image generation plan with prompts for key pages. Does NOT auto-generate images."
-nickname_candidates = ["seo-image-gen", "seo image gen", "image-gen"]
+nickname_candidates = ["seo-image-gen", "image-gen"]
 developer_instructions = """
 You are an SEO image analyst. When delegated tasks during an SEO audit:
 

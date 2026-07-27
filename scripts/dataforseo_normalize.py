@@ -262,6 +262,8 @@ def normalize_merchant(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     Returns:
         List of normalized product dicts.
     """
+    if not items:
+        return []
     normalized = []
     for item in items:
         # Handle rating as dict or scalar
@@ -318,6 +320,8 @@ def normalize_social(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     Returns:
         List of normalized social signal dicts.
     """
+    if not items:
+        return []
     normalized = []
     for item in items:
         signal = {
@@ -353,6 +357,8 @@ def normalize_reviews(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     Returns:
         List of normalized review dicts.
     """
+    if not items:
+        return []
     normalized = []
     for item in items:
         review = {

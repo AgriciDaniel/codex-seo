@@ -8,7 +8,6 @@ Requires a Google Ads Manager account with a developer token.
 Usage:
     python keyword_planner.py ideas "seo tools" --json
     python keyword_planner.py volume "seo tools,seo audit,seo checker" --json
-    python keyword_planner.py forecast "seo tools" --json
 
 Prerequisites:
     - Google Ads Manager account (can be free)
@@ -28,6 +27,7 @@ Note: Accounts without active ad spend receive bucketed volume ranges
 
 import argparse
 import json
+import os
 import sys
 from typing import Optional
 
@@ -41,7 +41,6 @@ except ImportError:
 try:
     from google_auth import load_config
 except ImportError:
-    import os
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from google_auth import load_config
 
@@ -89,9 +88,6 @@ def _build_ads_client() -> Optional[object]:
 
         # Try to use OAuth token if available
         token_path = os.path.expanduser("~/.config/codex-seo/oauth-token.json")
-        legacy_token_path = os.path.expanduser("~/.config/claude-seo/oauth-token.json")
-        if not os.path.exists(token_path) and os.path.exists(legacy_token_path):
-            token_path = legacy_token_path
         if os.path.exists(token_path):
             with open(token_path) as f:
                 token_data = json.load(f)

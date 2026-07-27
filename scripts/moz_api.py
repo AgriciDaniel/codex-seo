@@ -2,9 +2,10 @@
 """
 Moz Link Explorer API client for Codex SEO.
 
-Queries the Moz API (JSON-RPC 2.0) for Domain Authority, Page Authority,
-Spam Score, link counts, and referring domain data. Free tier provides
-2,500 rows/month at 1 request per 10 seconds.
+Queries the Moz v2 REST API for Domain Authority, Page Authority,
+Spam Score, link counts, and referring domain data. Uses a conservative
+10-second default delay; verify current Moz plan limits and rely on live
+429 handling.
 
 Usage:
     python moz_api.py metrics https://example.com --json
@@ -14,6 +15,7 @@ Usage:
 """
 
 import argparse
+import base64
 import json
 import sys
 import time
@@ -36,27 +38,40 @@ except ImportError:
     print("Error: backlinks_auth.py and google_auth.py required in scripts/", file=sys.stderr)
     sys.exit(1)
 
-MOZ_ENDPOINT = "https://api.moz.com/jsonrpc"
+MOZ_BASE = "https://api.moz.com"
+# Legacy JSON-RPC endpoint was deprecated; Moz migrated to v2 REST.
+# All four legacy methods map to dedicated v2 REST paths.
 
-# Rate limit: 1 request per 10 seconds on free tier
+# Conservative default delay; verify current Moz plan limits.
 RATE_LIMIT_DELAY = 10
 RATE_LIMIT_FILE = os.path.expanduser("~/.cache/codex-seo/moz_last_request.lock")
-LEGACY_RATE_LIMIT_FILE = os.path.expanduser("~/.cache/claude-seo/moz_last_request.lock")
+
+
+def _moz_basic_auth_header(api_key: str) -> str | None:
+    """Return a Basic auth header for accessId:secret credentials."""
+    if ":" in api_key:
+        encoded = base64.b64encode(api_key.encode("utf-8")).decode("ascii")
+        return f"Basic {encoded}"
+
+    try:
+        decoded = base64.b64decode(api_key, validate=True).decode("utf-8")
+    except (ValueError, UnicodeDecodeError):
+        return None
+    if ":" not in decoded:
+        return None
+    return f"Basic {api_key}"
 
 
 def _rate_limit():
-    """Enforce Moz free tier rate limit: 1 request per 10 seconds.
+    """Apply the conservative Moz request delay.
 
     Persists timestamp to a lockfile so the limit is respected across
     separate CLI invocations (each call is a new process).
     """
-    rate_limit_file = RATE_LIMIT_FILE
-    if not os.path.exists(RATE_LIMIT_FILE) and os.path.exists(LEGACY_RATE_LIMIT_FILE):
-        rate_limit_file = LEGACY_RATE_LIMIT_FILE
-    os.makedirs(os.path.dirname(rate_limit_file), exist_ok=True)
+    os.makedirs(os.path.dirname(RATE_LIMIT_FILE), exist_ok=True)
 
     try:
-        with open(rate_limit_file, "a+") as f:
+        with open(RATE_LIMIT_FILE, "a+") as f:
             try:
                 import fcntl
                 fcntl.flock(f, fcntl.LOCK_EX)
@@ -79,13 +94,13 @@ def _rate_limit():
         pass  # If lockfile fails, fall back to no rate limiting (server-side 429 handles it)
 
 
-def _moz_request(method: str, params: dict, api_key: str) -> dict:
+def _moz_request(path: str, body: dict, api_key: str) -> dict:
     """
-    Make a JSON-RPC 2.0 request to the Moz API.
+    Make a v2 REST request to the Moz API.
 
     Args:
-        method: API method name (e.g., 'data.url_metrics.get').
-        params: Method parameters.
+        path: API path (e.g., '/v2/url_metrics').
+        body: Request body for the endpoint.
         api_key: Moz API key.
 
     Returns:
@@ -93,23 +108,20 @@ def _moz_request(method: str, params: dict, api_key: str) -> dict:
     """
     _rate_limit()
 
-    payload = {
-        "jsonrpc": "2.0",
-        "id": "codex-seo",
-        "method": method,
-        "params": params,
-    }
-
     headers = {
         "Content-Type": "application/json",
-        "x-moz-token": api_key,
-        "User-Agent": "CodexSEO/1.8.0",
+        "User-Agent": "ClaudeSEO/1.8.0",
     }
+    basic_auth = _moz_basic_auth_header(api_key)
+    if basic_auth:
+        headers["Authorization"] = basic_auth
+    else:
+        headers["x-moz-token"] = api_key
 
     try:
         response = requests.post(
-            MOZ_ENDPOINT,
-            json=payload,
+            MOZ_BASE + path,
+            json=body,
             headers=headers,
             timeout=30,
         )
@@ -118,7 +130,7 @@ def _moz_request(method: str, params: dict, api_key: str) -> dict:
             return {
                 "status": "rate_limited",
                 "data": None,
-                "error": "Moz free tier rate limit exceeded. Wait 10 seconds between requests.",
+                "error": "Moz rate limit exceeded. Wait and verify current plan limits.",
                 "metadata": {"source": "moz", "rate_limited": True},
             }
 
@@ -138,24 +150,29 @@ def _moz_request(method: str, params: dict, api_key: str) -> dict:
                 "metadata": {"source": "moz"},
             }
 
-        response.raise_for_status()
-        result = response.json()
-
-        if "error" in result:
+        # v2 REST returns 400 with {"error": "..."} on bad requests
+        if response.status_code >= 400:
+            try:
+                err_body = response.json()
+                err_msg = err_body.get("error") or err_body.get("message") or response.text
+            except ValueError:
+                err_msg = response.text or f"HTTP {response.status_code}"
             return {
                 "status": "error",
                 "data": None,
-                "error": result["error"].get("message", str(result["error"])),
-                "metadata": {"source": "moz"},
+                "error": f"HTTP {response.status_code}: {err_msg}",
+                "metadata": {"source": "moz", "path": path},
             }
+
+        result = response.json()
 
         return {
             "status": "success",
-            "data": result.get("result"),
+            "data": result,
             "error": None,
             "metadata": {
                 "source": "moz",
-                "method": method,
+                "path": path,
                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             },
         }
@@ -187,23 +204,20 @@ def get_url_metrics(url: str, api_key: str) -> dict:
     Returns:
         Standard response dict with metrics data.
     """
-    params = {
-        "data": {
-            "api_target": url,
-            "api_target_type": "domain",
-        }
-    }
-    result = _moz_request("data.url_metrics.get", params, api_key)
+    target = url.replace("https://", "").replace("http://", "").rstrip("/")
+    body = {"targets": [target]}
+    result = _moz_request("/v2/url_metrics", body, api_key)
 
     if result["status"] == "success" and result["data"]:
-        data = result["data"]
+        results = result["data"].get("results") or []
+        data = results[0] if results else {}
         result["data"] = {
             "url": url,
             "domain_authority": data.get("domain_authority"),
             "page_authority": data.get("page_authority"),
             "spam_score": data.get("spam_score"),
-            "links": data.get("links", 0),
-            "external_links": data.get("external_links_to_root_domain", 0),
+            "links": data.get("external_pages_to_root_domain", 0),
+            "external_links": data.get("external_pages_to_root_domain", 0),
             "linking_root_domains": data.get("root_domains_to_root_domain", 0),
             "last_crawled": data.get("last_crawled"),
             "raw": data,
@@ -224,28 +238,26 @@ def get_linking_domains(url: str, api_key: str, limit: int = 50) -> dict:
     Returns:
         Standard response dict with referring domain list.
     """
-    params = {
-        "data": {
-            "api_target": url,
-            "api_target_type": "domain",
-            "limit": min(limit, 100),
-        }
+    target = url.replace("https://", "").replace("http://", "").rstrip("/")
+    body = {
+        "target": target,
+        "target_scope": "root_domain",
+        "limit": min(limit, 50),
     }
-    result = _moz_request("data.linking_root_domains.get", params, api_key)
+    result = _moz_request("/v2/linking_root_domains", body, api_key)
 
     if result["status"] == "success" and result["data"]:
-        data = result["data"]
+        results_list = result["data"].get("results") or []
         domains = []
-        results_list = data.get("results", data) if isinstance(data, dict) else data
-        if isinstance(results_list, list):
-            for item in results_list:
-                domains.append({
-                    "domain": item.get("root_domain", item.get("url", "")),
-                    "domain_authority": item.get("domain_authority"),
-                    "page_authority": item.get("page_authority"),
-                    "spam_score": item.get("spam_score"),
-                    "links_to_target": item.get("links_to_target", 1),
-                })
+        for item in results_list:
+            to_target = item.get("to_target", {}) or {}
+            domains.append({
+                "domain": item.get("root_domain", ""),
+                "domain_authority": item.get("domain_authority"),
+                "page_authority": None,
+                "spam_score": item.get("spam_score"),
+                "links_to_target": to_target.get("pages", 1),
+            })
         result["data"] = {
             "target": url,
             "total_returned": len(domains),
@@ -267,26 +279,23 @@ def get_anchor_text(url: str, api_key: str, limit: int = 50) -> dict:
     Returns:
         Standard response dict with anchor text data.
     """
-    params = {
-        "data": {
-            "api_target": url,
-            "api_target_type": "domain",
-            "limit": min(limit, 100),
-        }
+    target = url.replace("https://", "").replace("http://", "").rstrip("/")
+    body = {
+        "target": target,
+        "target_scope": "root_domain",
+        "limit": min(limit, 50),
     }
-    result = _moz_request("data.anchor_text.get", params, api_key)
+    result = _moz_request("/v2/anchor_text", body, api_key)
 
     if result["status"] == "success" and result["data"]:
-        data = result["data"]
+        results_list = result["data"].get("results") or []
         anchors = []
-        results_list = data.get("results", data) if isinstance(data, dict) else data
-        if isinstance(results_list, list):
-            for item in results_list:
-                anchors.append({
-                    "anchor_text": item.get("anchor_text", ""),
-                    "external_links": item.get("external_links", 0),
-                    "linking_domains": item.get("root_domains", 0),
-                })
+        for item in results_list:
+            anchors.append({
+                "anchor_text": item.get("anchor_text", ""),
+                "external_links": item.get("external_pages", 0),
+                "linking_domains": item.get("external_root_domains", 0),
+            })
         result["data"] = {
             "target": url,
             "total_returned": len(anchors),
@@ -308,27 +317,24 @@ def get_top_pages(domain: str, api_key: str, limit: int = 50) -> dict:
     Returns:
         Standard response dict with top pages data.
     """
-    params = {
-        "data": {
-            "api_target": domain,
-            "api_target_type": "domain",
-            "limit": min(limit, 100),
-        }
+    target = domain.replace("https://", "").replace("http://", "").rstrip("/")
+    body = {
+        "target": target,
+        "target_scope": "root_domain",
+        "limit": min(limit, 50),
     }
-    result = _moz_request("data.top_pages.get", params, api_key)
+    result = _moz_request("/v2/top_pages", body, api_key)
 
     if result["status"] == "success" and result["data"]:
-        data = result["data"]
+        results_list = result["data"].get("results") or []
         pages = []
-        results_list = data.get("results", data) if isinstance(data, dict) else data
-        if isinstance(results_list, list):
-            for item in results_list:
-                pages.append({
-                    "url": item.get("url", ""),
-                    "page_authority": item.get("page_authority"),
-                    "links": item.get("links", 0),
-                    "linking_domains": item.get("root_domains", 0),
-                })
+        for item in results_list:
+            pages.append({
+                "url": item.get("page", ""),
+                "page_authority": item.get("page_authority"),
+                "links": item.get("external_pages_to_page", 0),
+                "linking_domains": item.get("root_domains_to_page", 0),
+            })
         result["data"] = {
             "domain": domain,
             "total_returned": len(pages),
@@ -367,7 +373,7 @@ def main():
 
     # Validate URL
     target = args.url
-    if target.startswith("http"):
+    if target.lower().startswith("http"):
         if not validate_url(target):
             result = {
                 "status": "error",

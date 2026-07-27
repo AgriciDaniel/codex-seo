@@ -2,36 +2,21 @@
 name: seo-drift
 description: >
   SEO drift monitoring: capture baselines of SEO-critical elements, detect changes,
-  and track regressions over time. Git for SEO — baseline, diff, and track changes
+  and track regressions over time. Git for SEO: baseline, diff, and track changes
   to your on-page SEO. Use when user says "SEO drift", "baseline", "track changes",
   "did anything break", "SEO regression", "compare SEO", "before and after",
   "monitor SEO changes", or "deployment check".
-user-invokable: true
+user-invocable: true
 argument-hint: "baseline|compare|history <url>"
 license: MIT
 metadata:
   author: AgriciDaniel
   original_author: "Dan Colta (Pro Hub Challenge)"
-  version: "1.9.6"
+  version: "2.2.4"
   category: seo
 ---
 
 # SEO Drift Monitor (April 2026)
-## Shared Data Cache
-
-**Step 0 -- Check shared data cache:**
-
-Before gathering, check `.seo-cache/` for reusable context from related SEO skills.
-Reference: `../seo/references/shared-data-cache.md` for schemas and dependency map.
-
-Check these cache files when present:
-- `.seo-cache/site-meta.json` for domain, business type, industry, and crawl context
-- `.seo-cache/audit-scores.json` for prior full-audit priorities
-- `.seo-cache/pages/{url-slug}/page-analysis.json` for page-level context when a URL is provided
-
-- If found: parse and use clearly valid fields (note "Using cached [X] from [date]")
-- If missing, corrupt, or irrelevant: continue with fresh evidence
-- If the user says "refresh" or "re-run": ignore cache reads and overwrite on write
 
 Git for your SEO. Capture baselines, detect regressions, track changes over time.
 
@@ -118,8 +103,8 @@ Captures the current state of a page and stores it.
 
 **Execution:**
 ```bash
-python scripts/drift_baseline.py <url>
-python scripts/drift_baseline.py <url> --skip-cwv
+codex-seo run drift_baseline.py <url>
+codex-seo run drift_baseline.py <url> --skip-cwv
 ```
 
 **Output:** JSON with baseline ID, timestamp, URL, and summary of captured elements.
@@ -141,16 +126,16 @@ Fetches the current page state and diffs it against the most recent baseline.
 
 **Execution:**
 ```bash
-python scripts/drift_compare.py <url>
-python scripts/drift_compare.py <url> --baseline-id 5
-python scripts/drift_compare.py <url> --skip-cwv
+codex-seo run drift_compare.py <url>
+codex-seo run drift_compare.py <url> --baseline-id 5
+codex-seo run drift_compare.py <url> --skip-cwv
 ```
 
 **Output:** JSON with all triggered rules, old/new values, severity, and actions.
 
 After comparison, offer to generate an HTML report:
 ```bash
-python scripts/drift_report.py <comparison_json_file> --output drift-report.html
+codex-seo run drift_report.py <comparison_json_file> --output drift-report.html
 ```
 
 ---
@@ -161,8 +146,8 @@ Shows all baselines and comparisons for a URL.
 
 **Execution:**
 ```bash
-python scripts/drift_history.py <url>
-python scripts/drift_history.py <url> --limit 10
+codex-seo run drift_history.py <url>
+codex-seo run drift_history.py <url> --limit 10
 ```
 
 **Output:** JSON array of baselines (newest first) with timestamps and comparison summaries.
@@ -232,8 +217,3 @@ When drift is detected, recommend the appropriate specialized skill:
 /seo drift compare https://example.com      # What changed?
 /seo drift history https://example.com      # When did it change?
 ```
-
-## Write to shared data cache
-
-After completing all work, write a concise JSON summary to `.seo-cache/` when the workflow produced durable findings.
-Use the schemas and naming rules in `../seo/references/shared-data-cache.md`; include at least `cache_type`, `analyzed_at`, source URL/domain, key findings, issues, recommendations, and tool limitations. Add `.seo-cache/` to `.gitignore` if it is missing.

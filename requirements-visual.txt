@@ -1,4 +1,2 @@
-# Codex SEO - Visual Workflow Dependencies
-# Optional for screenshots, visual analysis, and browser-backed checks.
-
-playwright>=1.56.0,<2.0.0
+# Codex SEO - Visual / Playwright Dependencies
+playwright>=1.59.0,<2.0.0
