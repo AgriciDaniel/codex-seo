@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 
 
 # ---------------------------------------------------------------------------
-# Codex SEO color palette
+# Claude-SEO color palette
 # ---------------------------------------------------------------------------
 COLORS = {
     "navy": "#1e3a5f",

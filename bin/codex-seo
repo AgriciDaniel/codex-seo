@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Stable entry point for bundled Python tools. The launcher uses only shell
+# built-ins until a usable Python 3 interpreter has been identified.
+launcher_dir="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+runtime="${launcher_dir}/../scripts/runtime.py"
+
+if [[ ! -f "${runtime}" ]]; then
+    echo "Codex SEO runtime is missing. Reinstall Codex SEO." >&2
+    exit 2
+fi
+
+# Override via environment for non-standard Python installs
+if [[ -n "${CODEX_SEO_PYTHON:-}" ]]; then
+    if "${CODEX_SEO_PYTHON}" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1; then
+        exec "${CODEX_SEO_PYTHON}" "${runtime}" "$@"
+    fi
+    echo "CODEX_SEO_PYTHON is not a usable Python 3.10+ executable." >&2
+    exit 2
+fi
+
+if command -v python3 >/dev/null 2>&1 && python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1; then
+    exec python3 "${runtime}" "$@"
+fi
+if command -v python >/dev/null 2>&1 && python -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1; then
+    exec python "${runtime}" "$@"
+fi
+
+echo "Codex SEO requires Python 3.10 or newer. Tried CODEX_SEO_PYTHON, python3, and python." >&2
+exit 2

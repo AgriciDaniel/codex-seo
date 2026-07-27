@@ -4,36 +4,21 @@ description: >
   SERP-based semantic topic clustering for content architecture planning. Groups
   keywords by actual Google SERP overlap (not text similarity), designs hub-and-spoke
   content clusters with internal link matrices, and generates interactive
-  visualizations. Optionally executes content creation if codex-blog is installed.
+  visualizations. Optionally executes content creation if claude-blog is installed.
   Use when user says "topic cluster", "content cluster", "semantic clustering",
   "pillar page", "hub and spoke", "content architecture", "keyword grouping",
   or "cluster plan".
-user-invokable: true
+user-invocable: true
 argument-hint: "<seed-keyword or url>"
 license: MIT
 metadata:
   author: AgriciDaniel
   original_author: "Lutfiya Miller (Pro Hub Challenge Winner)"
-  version: "1.9.6"
+  version: "2.2.4"
   category: seo
 ---
 
-# Semantic Topic Clustering (v1.9.0)
-## Shared Data Cache
-
-**Step 0 -- Check shared data cache:**
-
-Before gathering, check `.seo-cache/` for reusable context from related SEO skills.
-Reference: `../seo/references/shared-data-cache.md` for schemas and dependency map.
-
-Check these cache files when present:
-- `.seo-cache/site-meta.json` for domain, business type, industry, and crawl context
-- `.seo-cache/audit-scores.json` for prior full-audit priorities
-- `.seo-cache/pages/{url-slug}/page-analysis.json` for page-level context when a URL is provided
-
-- If found: parse and use clearly valid fields (note "Using cached [X] from [date]")
-- If missing, corrupt, or irrelevant: continue with fresh evidence
-- If the user says "refresh" or "re-run": ignore cache reads and overwrite on write
+# Semantic Topic Clustering
 
 SERP-overlap-driven keyword clustering for content architecture. Groups keywords
 by how Google actually ranks them (shared top-10 results), not by text similarity.
@@ -50,7 +35,7 @@ interactive cluster map visualizations.
 |---------|-------------|
 | `/seo cluster plan <seed-keyword>` | Full planning workflow: expand, cluster, architect, visualize |
 | `/seo cluster plan --from strategy` | Import from existing `/seo plan` output |
-| `/seo cluster execute` | Execute plan: create content via codex-blog or output briefs |
+| `/seo cluster execute` | Execute plan: create content via claude-blog or output briefs |
 | `/seo cluster map` | Regenerate the interactive cluster visualization |
 
 ---
@@ -61,11 +46,11 @@ interactive cluster map visualizations.
 
 Expand the seed keyword into 30-50 variants using WebSearch:
 
-1. **Related searches** — Search the seed, extract "related searches" and "people also search for"
-2. **People Also Ask (PAA)** — Extract all PAA questions from SERP results
-3. **Long-tail modifiers** — Append common modifiers: "best", "how to", "vs", "for beginners", "tools", "examples", "guide", "template", "mistakes", "checklist"
-4. **Question mining** — Generate who/what/when/where/why/how variants
-5. **Intent modifiers** — Add commercial modifiers: "pricing", "review", "alternative", "comparison", "free", "top"
+1. **Related searches**: Search the seed, extract "related searches" and "people also search for"
+2. **People Also Ask (PAA)**: Extract all PAA questions from SERP results
+3. **Long-tail modifiers**: Append common modifiers: "best", "how to", "vs", "for beginners", "tools", "examples", "guide", "template", "mistakes", "checklist"
+4. **Question mining**: Generate who/what/when/where/why/how variants
+5. **Intent modifiers**: Add commercial modifiers: "pricing", "review", "alternative", "comparison", "free", "top"
 
 **Deduplication:** Normalize variants (lowercase, strip articles), remove exact duplicates.
 Target: 30-50 unique keyword variants. If under 30, run a second expansion pass
@@ -95,7 +80,7 @@ the full algorithm.
 - Skip pairs where both are long-tail variants of the same head term (assume same cluster)
 
 **DataForSEO integration:** If DataForSEO MCP is available, use `serp_organic_live_advanced`
-instead of WebSearch for SERP data. Run `python scripts/dataforseo_costs.py check serp_organic_live_advanced --count N`
+instead of WebSearch for SERP data. Run `codex-seo run dataforseo_costs.py check serp_organic_live_advanced --count N`
 before each batch. If `"status": "needs_approval"`, show cost estimate and ask user.
 If `"status": "blocked"`, fall back to WebSearch.
 
@@ -120,10 +105,10 @@ Load `references/hub-spoke-architecture.md` for full specifications.
 
 **Design the cluster structure:**
 
-1. **Select the pillar keyword** — Highest volume, broadest intent, most SERP overlap with other keywords
-2. **Group spokes into clusters** — Each cluster is a subtopic area (2-5 clusters per pillar)
-3. **Assign posts to clusters** — Each cluster gets 2-4 spoke posts
-4. **Select templates per post** — Based on intent classification:
+1. **Select the pillar keyword**: Highest volume, broadest intent, most SERP overlap with other keywords
+2. **Group spokes into clusters**: Each cluster is a subtopic area (2-5 clusters per pillar)
+3. **Assign posts to clusters**: Each cluster gets 2-4 spoke posts
+4. **Select templates per post**: Based on intent classification:
 
 | Intent Pattern | Template Options |
 |---------------|-----------------|
@@ -140,7 +125,7 @@ Load `references/hub-spoke-architecture.md` for full specifications.
    - Pillar page: 2500-4000 words
    - Spoke posts: 1200-1800 words
 
-6. **Cannibalization check** — No two posts share the same primary keyword. If SERP
+6. **Cannibalization check**: No two posts share the same primary keyword. If SERP
    overlap is 7+, merge those keywords into a single post targeting both.
 
 ### Step 5: Internal Link Matrix
@@ -210,13 +195,13 @@ current directory. Run `/seo plan` first, or provide a seed keyword for fresh cl
 
 When `/seo cluster execute` is invoked:
 
-### Check for codex-blog
+### Check for claude-blog
 
 ```
-Test: Does ~/.codex/skills/blog/SKILL.md exist?
+Test: Does ~/.claude/skills/blog/SKILL.md exist?
 ```
 
-**If codex-blog IS installed:**
+**If claude-blog IS installed:**
 
 1. Load `references/execution-workflow.md` for the full algorithm
 2. Read `cluster-plan.json` from the current directory
@@ -233,7 +218,7 @@ Test: Does ~/.codex/skills/blog/SKILL.md exist?
    and inject the new post's URL
 7. After all posts are written, generate the cluster scorecard
 
-**If codex-blog is NOT installed:**
+**If claude-blog is NOT installed:**
 
 1. Generate detailed content briefs for each post in the cluster plan
 2. Each brief includes:
@@ -245,7 +230,7 @@ Test: Does ~/.codex/skills/blog/SKILL.md exist?
    - Key points to cover
    - Competing pages to differentiate from
 3. Write briefs to `cluster-briefs/` directory as individual markdown files
-4. Inform user: "Install [codex-blog](https://github.com/AgriciDaniel/codex-blog)
+4. Inform user: "Install [claude-blog](https://github.com/AgriciDaniel/claude-blog)
    to auto-create content. Briefs saved to `cluster-briefs/`."
 
 ---
@@ -288,7 +273,7 @@ All outputs are written to the current working directory:
 | `cluster-plan.json` | Machine-readable cluster plan (full data) |
 | `cluster-plan.md` | Human-readable cluster plan summary |
 | `cluster-map.html` | Interactive SVG visualization |
-| `cluster-briefs/` | Content briefs (if no codex-blog) |
+| `cluster-briefs/` | Content briefs (if no claude-blog) |
 | `cluster-scorecard.md` | Post-execution quality report |
 
 ---
@@ -317,7 +302,7 @@ After cluster planning or execution completes, offer:
 | "SERP data unavailable" | WebSearch and DataForSEO both failing | Retry after 30s; if persistent, use intent-only clustering with warning |
 | "No strategy file found" | `--from strategy` but no plan exists | Prompt user to run `/seo plan` first |
 | "cluster-plan.json not found" | Execute without planning | Prompt user to run `/seo cluster plan` first |
-| "codex-blog not installed" | Execute attempted without blog skill | Generate content briefs instead; suggest installation |
+| "claude-blog not installed" | Execute attempted without blog skill | Generate content briefs instead; suggest installation |
 | "DataForSEO budget exceeded" | Cost check returned "blocked" | Fall back to WebSearch; inform user |
 | "Duplicate primary keywords" | Cannibalization detected | Merge affected posts or reassign keywords |
 | "Orphan page detected" | Post missing incoming links | Add links from nearest cluster siblings |
@@ -327,16 +312,11 @@ After cluster planning or execution completes, offer:
 
 ## Security
 
-- All URLs fetched via `python scripts/fetch_page.py` (SSRF protection via `validate_url()`)
+- All URLs fetched via `codex-seo run render_page.py <url> --mode auto` (SPA-aware SSRF protection via `url_safety`)
 - No credentials stored or transmitted
 - Output files contain no PII or API keys
 - DataForSEO cost checks run before every API call
 
 ## FLOW Framework Integration
 
-For prompt-guided keyword research and gap analysis, use `/seo flow find [url|topic]` — FLOW's 5 find-stage prompts complement the SERP-overlap clustering methodology with structured discovery prompts.
-
-## Write to shared data cache
-
-After completing all work, write a concise JSON summary to `.seo-cache/` when the workflow produced durable findings.
-Use the schemas and naming rules in `../seo/references/shared-data-cache.md`; include at least `cache_type`, `analyzed_at`, source URL/domain, key findings, issues, recommendations, and tool limitations. Add `.seo-cache/` to `.gitignore` if it is missing.
+For prompt-guided keyword research and gap analysis, use `/seo flow find [url|topic]`: FLOW's 5 find-stage prompts complement the SERP-overlap clustering methodology with structured discovery prompts.

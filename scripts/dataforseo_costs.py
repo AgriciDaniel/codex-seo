@@ -38,18 +38,8 @@ except ImportError:
 
 # ----- paths -----
 CONFIG_DIR = Path.home() / ".config" / "codex-seo"
-LEGACY_CONFIG_DIR = Path.home() / ".config" / "claude-seo"
 CONFIG_FILE = CONFIG_DIR / "dataforseo-costs.json"
 LEDGER_FILE = CONFIG_DIR / "dataforseo-ledger.json"
-LEGACY_CONFIG_FILE = LEGACY_CONFIG_DIR / "dataforseo-costs.json"
-LEGACY_LEDGER_FILE = LEGACY_CONFIG_DIR / "dataforseo-ledger.json"
-
-
-def _read_path(primary: Path, legacy: Path) -> Path:
-    """Return the primary path, or legacy path when only a legacy file exists."""
-    if primary.exists() or not legacy.exists():
-        return primary
-    return legacy
 
 # ----- cost table (USD per call, standard queue) -----
 # Source: https://dataforseo.com/pricing
@@ -134,9 +124,8 @@ DEFAULT_CONFIG = {
 
 def _load_config():
     """Load or create configuration."""
-    config_file = _read_path(CONFIG_FILE, LEGACY_CONFIG_FILE)
-    if config_file.exists():
-        with open(config_file) as f:
+    if CONFIG_FILE.exists():
+        with open(CONFIG_FILE) as f:
             cfg = json.load(f)
         # Merge defaults for missing keys
         for k, v in DEFAULT_CONFIG.items():
@@ -154,22 +143,21 @@ def _save_config(cfg):
 
 def _load_ledger():
     """Load spending ledger with file locking."""
-    ledger_file = _read_path(LEDGER_FILE, LEGACY_LEDGER_FILE)
-    if not ledger_file.exists():
+    if not LEDGER_FILE.exists():
         return {"entries": []}
     if fcntl:
-        lock_path = ledger_file.with_suffix(".lock")
+        lock_path = LEDGER_FILE.with_suffix(".lock")
         with open(lock_path, "w") as lock_file:
             fcntl.flock(lock_file, fcntl.LOCK_SH)
             try:
-                with open(ledger_file) as f:
+                with open(LEDGER_FILE) as f:
                     return json.load(f)
             except (json.JSONDecodeError, IOError):
                 return {"entries": []}
             finally:
                 fcntl.flock(lock_file, fcntl.LOCK_UN)
     else:
-        with open(ledger_file) as f:
+        with open(LEDGER_FILE) as f:
             return json.load(f)
 
 

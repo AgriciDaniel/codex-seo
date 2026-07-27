@@ -33,7 +33,7 @@ Predict clicks, impressions, and cost for keywords.
 
 ## Configuration
 
-Add to `~/.config/codex-seo/google-api.json`:
+Add to `~/.config/claude-seo/google-api.json`:
 
 ```json
 {

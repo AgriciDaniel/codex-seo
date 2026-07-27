@@ -1,45 +1,30 @@
 ---
 name: seo-flow
 description: >
-  FLOW framework integration — evidence-led SEO using the Find → Leverage →
+  FLOW framework integration: evidence-led SEO using the Find → Leverage →
   Optimize → Win loop. Surfaces stage-specific AI prompts from the FLOW
   knowledge base (41 prompts, CC BY 4.0). Use when user says "FLOW", "FLOW
   framework", "seo flow", "evidence-led SEO", "find leverage optimize win",
   or wants stage-specific SEO prompts.
-user-invokable: true
+user-invocable: true
 argument-hint: "[stage] [url|topic]"
 license: MIT
 metadata:
   author: AgriciDaniel
-  version: "1.9.6"
+  version: "2.2.4"
   category: seo
 ---
 
-# FLOW Framework — Find · Leverage · Optimize · Win
-## Shared Data Cache
-
-**Step 0 -- Check shared data cache:**
-
-Before gathering, check `.seo-cache/` for reusable context from related SEO skills.
-Reference: `../seo/references/shared-data-cache.md` for schemas and dependency map.
-
-Check these cache files when present:
-- `.seo-cache/site-meta.json` for domain, business type, industry, and crawl context
-- `.seo-cache/audit-scores.json` for prior full-audit priorities
-- `.seo-cache/pages/{url-slug}/page-analysis.json` for page-level context when a URL is provided
-
-- If found: parse and use clearly valid fields (note "Using cached [X] from [date]")
-- If missing, corrupt, or irrelevant: continue with fresh evidence
-- If the user says "refresh" or "re-run": ignore cache reads and overwrite on write
-
-> Framework and prompts © Daniel Agrici, CC BY 4.0 — github.com/AgriciDaniel/flow
+# FLOW Framework: Find · Leverage · Optimize · Win
 
 FLOW is an evidence-led SEO operating model built for the AI-search era. Codex SEO
 integrates the FLOW prompt library (41 prompts across 5 stages) so every analysis can
 be driven by structured, evidence-backed AI prompts rather than improvised queries.
 
+> Framework and prompts © Daniel Agrici, CC BY 4.0: github.com/AgriciDaniel/flow
+
 **Runtime context:** Load `references/flow-framework.md` on every `/seo flow` activation.
-Load prompt files on demand — only for the stage the user requests.
+Load prompt files on demand, only for the stage the user requests.
 
 ---
 
@@ -53,7 +38,7 @@ Load prompt files on demand — only for the stage the user requests.
 | `/seo flow optimize [url]` | Optimize-stage: select 2-3 most relevant of 21 prompts based on context |
 | `/seo flow win [url]` | Win-stage: BOFU, conversion rate, dual-surface scorecard (3 prompts) |
 | `/seo flow local [url]` | Local-stage: GBP optimization, meta, title tags, local audits (11 prompts) |
-| `/seo flow prompts` | Full index of all 41 prompts — stage, name, trigger conditions |
+| `/seo flow prompts` | Full index of all 41 prompts (stage, name, trigger conditions) |
 | `/seo flow sync` | Pull latest prompt files from github.com/AgriciDaniel/flow |
 
 ---
@@ -97,7 +82,7 @@ Load prompt files on demand — only for the stage the user requests.
 2. Display the full index: all 41 prompts with stage, name, trigger conditions
 
 ### On `/seo flow sync`
-1. Run: `python scripts/sync_flow.py`
+1. Run: `codex-seo run sync_flow.py`
 2. Display the JSON summary (files added, updated, unchanged)
 3. Show attribution notice after sync completes
 
@@ -117,15 +102,15 @@ Always surface exactly 2-3 prompts. State which prompts you chose and why.
 
 ## Reference Files
 
-Load on-demand — do NOT load all at startup:
-- `references/flow-framework.md` — FLOW operating model (load on every `/seo flow` activation)
-- `references/bibliography.md` — Evidence sources; load when citing studies or statistics
-- `references/prompts/README.md` — Prompt index; load for `/seo flow prompts`
-- `references/prompts/find/` — 5 prompts; load for `/seo flow find`
-- `references/prompts/leverage/` — 1 prompt; load for `/seo flow leverage`
-- `references/prompts/optimize/` — 21 prompts; load selectively for `/seo flow optimize`
-- `references/prompts/win/` — 3 prompts; load for `/seo flow win`
-- `references/prompts/local/` — 11 prompts; load for `/seo flow local`
+Load on-demand, do NOT load all at startup:
+- `references/flow-framework.md`: FLOW operating model (load on every `/seo flow` activation)
+- `references/bibliography.md`: Evidence sources; load when citing studies or statistics
+- `references/prompts/README.md`: Prompt index; load for `/seo flow prompts`
+- `references/prompts/find/`: 5 prompts; load for `/seo flow find`
+- `references/prompts/leverage/`: 1 prompt; load for `/seo flow leverage`
+- `references/prompts/optimize/`: 21 prompts; load selectively for `/seo flow optimize`
+- `references/prompts/win/`: 3 prompts; load for `/seo flow win`
+- `references/prompts/local/`: 11 prompts; load for `/seo flow local`
 
 ---
 
@@ -134,7 +119,7 @@ Load on-demand — do NOT load all at startup:
 Every `/seo flow` activation (any sub-command) outputs before analysis:
 
 ```
-Framework and prompts © Daniel Agrici, CC BY 4.0 — github.com/AgriciDaniel/flow
+Framework and prompts © Daniel Agrici, CC BY 4.0: github.com/AgriciDaniel/flow
 ```
 
 Do not omit or modify the attribution.
@@ -149,8 +134,3 @@ Do not omit or modify the attribution.
 | Prompt file missing | "Run `/seo flow sync` to pull the latest prompts from the FLOW repo." |
 | `sync_flow.py` network error | Display the script's stderr. Check rate limits: `gh api rate_limit`. |
 | `sync_flow.py` auth error | Run `gh auth login` then retry. |
-
-## Write to shared data cache
-
-After completing all work, write a concise JSON summary to `.seo-cache/` when the workflow produced durable findings.
-Use the schemas and naming rules in `../seo/references/shared-data-cache.md`; include at least `cache_type`, `analyzed_at`, source URL/domain, key findings, issues, recommendations, and tool limitations. Add `.seo-cache/` to `.gitignore` if it is missing.

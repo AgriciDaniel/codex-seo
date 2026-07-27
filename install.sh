@@ -49,7 +49,7 @@ try:
 except Exception:
     sys.exit(0)
 
-notes = payload.get("verification", {}).get("notes", [])
+notes = (payload.get("verification") or {}).get("notes", [])
 for note in notes[:5]:
     print(f"[ERROR] {note}")
 
@@ -77,7 +77,7 @@ main() {
     AGENT_DIR="${CODEX_ROOT}/agents"
     SKILL_DIR="${SKILLS_ROOT}/seo"
     REPO_URL="${CODEX_SEO_REPO:-https://github.com/AgriciDaniel/codex-seo}"
-    REPO_REF="${CODEX_SEO_REF:-v1.9.6-codex.5}"
+    REPO_REF="${CODEX_SEO_REF:-v2.2.4-codex.1}"
     PYTHON_BIN="$(resolve_python)" || { echo "[ERROR] Python 3 is required but not installed."; exit 1; }
     SUITE_SKILL_DIRS=(
         seo
@@ -86,6 +86,7 @@ main() {
         seo-cluster
         seo-competitor-pages
         seo-content
+        seo-content-brief
         seo-dataforseo
         seo-drift
         seo-ecommerce
@@ -111,7 +112,7 @@ main() {
 
     echo "========================================"
     echo "  Codex SEO - Installer"
-    echo "  Codex Skill Suite"
+    echo "  Codex Skill Suite (v2.2.4)"
     echo "========================================"
     echo ""
 
