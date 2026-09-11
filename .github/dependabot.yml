@@ -4,10 +4,32 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 10
+    groups:
+      runtime-production-minor-patch:
+        patterns:
+          - '*'
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+      runtime-development-minor-patch:
+        patterns:
+          - '*'
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+    open-pull-requests-limit: 3
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
+      interval: "monthly"
+    groups:
+      actions-minor-patch:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
+    open-pull-requests-limit: 2
