@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Banana Image Generation - Direct API Fallback: Image Generation
+"""Claude Banana - Direct API Fallback: Image Generation
 
 Generate images via Gemini REST API when MCP is unavailable.
 Uses only Python stdlib (no pip dependencies).
@@ -13,12 +13,13 @@ import argparse
 import base64
 import json
 import os
+import re
 import sys
 import urllib.request
 from datetime import datetime
 from pathlib import Path
 
-DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
+DEFAULT_MODEL = os.environ.get("NANOBANANA_MODEL")
 DEFAULT_RESOLUTION = "1K"
 DEFAULT_RATIO = "1:1"
 OUTPUT_DIR = Path.home() / "Documents" / "nanobanana_generated"
@@ -27,12 +28,34 @@ API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 VALID_RATIOS = {"1:1", "16:9", "9:16", "4:3", "3:4", "2:3", "3:2",
                 "4:5", "5:4", "1:4", "4:1", "1:8", "8:1", "21:9"}
 VALID_RESOLUTIONS = {"512", "1K", "2K", "4K"}
+_GOOGLE_API_KEY_PREFIX = "AI" + "za"
+_GOOGLE_API_KEY_RE = re.compile(_GOOGLE_API_KEY_PREFIX + r"[0-9A-Za-z_-]+")
+_GOOGLE_KEY_QUERY_RE = re.compile(r"([?&])key=[^&\s'\"<>)]*(&?)")
+_GOOGLE_KEY_BARE_RE = re.compile(r"\bkey=[^&\s'\"<>)]*")
+
+
+def _redact_google_api_key(value):
+    """Remove Google API keys from standalone fallback error output."""
+    text = str(value)
+
+    def drop_query_key(match):
+        separator, trailing_amp = match.groups()
+        if separator == "?" and trailing_amp:
+            return "?"
+        if separator == "&" and trailing_amp:
+            return "&"
+        return ""
+
+    text = _GOOGLE_KEY_QUERY_RE.sub(drop_query_key, text)
+    text = text.replace("?&", "?")
+    text = _GOOGLE_KEY_BARE_RE.sub("google_api_key_redacted", text)
+    return _GOOGLE_API_KEY_RE.sub("GOOGLE_API_KEY_REDACTED", text)
 
 
 def generate_image(prompt, model, aspect_ratio, resolution, api_key,
                    thinking_level=None, image_only=False):
     """Call Gemini API to generate an image."""
-    url = f"{API_BASE}/{model}:generateContent?key={api_key}"
+    url = f"{API_BASE}/{model}:generateContent"
 
     modalities = ["IMAGE"] if image_only else ["TEXT", "IMAGE"]
     body = {
@@ -53,7 +76,7 @@ def generate_image(prompt, model, aspect_ratio, resolution, api_key,
     req = urllib.request.Request(
         url,
         data=data,
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "X-Goog-Api-Key": api_key},
         method="POST",
     )
 
@@ -61,11 +84,13 @@ def generate_image(prompt, model, aspect_ratio, resolution, api_key,
         with urllib.request.urlopen(req, timeout=120) as resp:
             result = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
-        error_body = e.read().decode("utf-8") if e.fp else ""
+        error_body = _redact_google_api_key(
+            e.read().decode("utf-8", "replace") if e.fp else ""
+        )
         print(json.dumps({"error": True, "status": e.code, "message": error_body}))
         sys.exit(1)
     except urllib.error.URLError as e:
-        print(json.dumps({"error": True, "message": str(e.reason)}))
+        print(json.dumps({"error": True, "message": _redact_google_api_key(e.reason)}))
         sys.exit(1)
 
     # Extract image from response
@@ -113,7 +138,7 @@ def main():
     parser.add_argument("--prompt", required=True, help="Image generation prompt")
     parser.add_argument("--aspect-ratio", default=DEFAULT_RATIO, help=f"Aspect ratio (default: {DEFAULT_RATIO})")
     parser.add_argument("--resolution", default=DEFAULT_RESOLUTION, help=f"Resolution: 512, 1K, 2K, 4K (default: {DEFAULT_RESOLUTION})")
-    parser.add_argument("--model", default=DEFAULT_MODEL, help=f"Model ID (default: {DEFAULT_MODEL})")
+    parser.add_argument("--model", default=DEFAULT_MODEL, help="Model ID (or set NANOBANANA_MODEL env)")
     parser.add_argument("--api-key", default=None, help="Google AI API key (or set GOOGLE_AI_API_KEY env)")
     parser.add_argument("--thinking", default=None, choices=["minimal", "low", "medium", "high"], help="Thinking level")
     parser.add_argument("--image-only", action="store_true", help="Return image only (no text)")
@@ -126,6 +151,10 @@ def main():
 
     if args.resolution not in VALID_RESOLUTIONS:
         print(json.dumps({"error": True, "message": f"Invalid resolution '{args.resolution}'. Valid: {sorted(VALID_RESOLUTIONS)}"}))
+        sys.exit(1)
+
+    if not args.model:
+        print(json.dumps({"error": True, "message": "No model. Set NANOBANANA_MODEL or pass --model."}))
         sys.exit(1)
 
     api_key = args.api_key or os.environ.get("GOOGLE_AI_API_KEY") or os.environ.get("GOOGLE_API_KEY")

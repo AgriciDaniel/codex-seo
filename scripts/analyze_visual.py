@@ -8,22 +8,24 @@ Usage:
 
 import argparse
 import json
+import os
 import sys
 from urllib.parse import ParseResult, urlparse
 
 try:
     from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
-    PLAYWRIGHT_IMPORT_ERROR = None
-except ImportError as exc:
-    sync_playwright = None
-    PlaywrightTimeout = TimeoutError
-    PLAYWRIGHT_IMPORT_ERROR = exc
-
-try:
-    from seo_pipeline_utils import install_playwright_public_url_guard, validate_public_url
 except ImportError:
-    install_playwright_public_url_guard = None
-    validate_public_url = None
+    print("Error: playwright required. Install with: pip install playwright && playwright install chromium")
+    sys.exit(1)
+
+_SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPTS_DIR)
+from url_safety import (  # noqa: E402  (sys.path massage above is intentional)
+    URLSafetyError,
+    make_safe_playwright_route_handler,
+    validate_url_strict,
+)
 
 
 def normalize_url(url: str) -> tuple[str, ParseResult]:
@@ -63,7 +65,6 @@ def analyze_visual(url: str, timeout: int = 30000) -> dict:
             "viewport_meta": False,
             "horizontal_scroll": False,
             "touch_targets_ok": True,
-            "undersized_touch_targets": [],
         },
         "layout": {
             "overlapping_elements": [],
@@ -76,22 +77,21 @@ def analyze_visual(url: str, timeout: int = 30000) -> dict:
         "error": None,
     }
 
-    if sync_playwright is None:
-        result["error"] = (
-            "Playwright is unavailable. Install with: "
-            "pip install playwright && playwright install chromium"
-        )
-        return result
-
     try:
-        if validate_public_url:
-            url = validate_public_url(url)
-        else:
-            url, _parsed = normalize_url(url)
+        url, _parsed = normalize_url(url)
         result["url"] = url
     except ValueError as e:
         result["error"] = str(e)
         return result
+
+    try:
+        url, _pinned_ip = validate_url_strict(url)
+        result["url"] = url
+    except URLSafetyError as e:
+        result["error"] = f"url_safety: {e}"
+        return result
+
+    route_handler = make_safe_playwright_route_handler()
 
     try:
         with sync_playwright() as p:
@@ -100,8 +100,7 @@ def analyze_visual(url: str, timeout: int = 30000) -> dict:
             # Desktop analysis
             desktop = browser.new_context(viewport={"width": 1920, "height": 1080})
             page = desktop.new_page()
-            if install_playwright_public_url_guard:
-                install_playwright_public_url_guard(page)
+            page.route("**/*", route_handler)
             page.goto(url, wait_until="networkidle", timeout=timeout)
 
             # Check H1 visibility above fold
@@ -156,8 +155,7 @@ def analyze_visual(url: str, timeout: int = 30000) -> dict:
             # Mobile analysis
             mobile = browser.new_context(viewport={"width": 375, "height": 812})
             page = mobile.new_page()
-            if install_playwright_public_url_guard:
-                install_playwright_public_url_guard(page)
+            page.route("**/*", route_handler)
             page.goto(url, wait_until="networkidle", timeout=timeout)
 
             # Check viewport meta
@@ -179,181 +177,6 @@ def analyze_visual(url: str, timeout: int = 30000) -> dict:
             """)
             result["fonts"]["base_size"] = base_font_size
             result["fonts"]["readable"] = base_font_size >= 16
-
-            # Check visible mobile touch targets against a 44x44px minimum.
-            undersized_touch_targets = page.evaluate("""
-                () => {
-                    const selectors = [
-                        'a[href]',
-                        'button',
-                        'input:not([type="hidden"])',
-                        'select',
-                        'textarea',
-                        'summary',
-                        '[role="button"]',
-                        '[role="link"]'
-                    ];
-                    const seen = new Set();
-                    const issues = [];
-
-                    const getLabel = (el) => {
-                        const text = (
-                            el.innerText ||
-                            el.getAttribute('aria-label') ||
-                            el.getAttribute('title') ||
-                            el.getAttribute('href') ||
-                            el.getAttribute('name') ||
-                            ''
-                        ).trim();
-                        return text.replace(/\\s+/g, ' ').slice(0, 80);
-                    };
-
-                    for (const el of document.querySelectorAll(selectors.join(','))) {
-                        if (seen.has(el)) continue;
-                        seen.add(el);
-
-                        const style = window.getComputedStyle(el);
-                        const rect = el.getBoundingClientRect();
-                        if (
-                            style.display === 'none' ||
-                            style.visibility === 'hidden' ||
-                            style.pointerEvents === 'none' ||
-                            rect.width <= 0 ||
-                            rect.height <= 0
-                        ) {
-                            continue;
-                        }
-
-                        const inViewport =
-                            rect.bottom > 0 &&
-                            rect.right > 0 &&
-                            rect.top < window.innerHeight &&
-                            rect.left < window.innerWidth;
-                        if (!inViewport) continue;
-
-                        if (rect.width < 44 || rect.height < 44) {
-                            issues.push({
-                                tag: el.tagName.toLowerCase(),
-                                label: getLabel(el),
-                                width: Math.round(rect.width * 10) / 10,
-                                height: Math.round(rect.height * 10) / 10,
-                            });
-                        }
-                    }
-
-                    return issues.slice(0, 10);
-                }
-            """)
-            result["mobile"]["undersized_touch_targets"] = undersized_touch_targets
-            result["mobile"]["touch_targets_ok"] = len(undersized_touch_targets) == 0
-
-            # Detect obvious clipped or overflowing text blocks in the viewport.
-            result["layout"]["text_overflow"] = page.evaluate("""
-                () => {
-                    const issues = [];
-                    const skipTags = new Set(['HTML', 'BODY', 'SCRIPT', 'STYLE', 'NOSCRIPT', 'SVG', 'PATH']);
-
-                    for (const el of document.querySelectorAll('body *')) {
-                        if (skipTags.has(el.tagName)) continue;
-                        const rect = el.getBoundingClientRect();
-                        const style = window.getComputedStyle(el);
-                        const text = (el.innerText || '').trim().replace(/\\s+/g, ' ');
-                        if (
-                            !text ||
-                            style.display === 'none' ||
-                            style.visibility === 'hidden' ||
-                            rect.width <= 0 ||
-                            rect.height <= 0
-                        ) {
-                            continue;
-                        }
-
-                        const inViewport =
-                            rect.bottom > 0 &&
-                            rect.right > 0 &&
-                            rect.top < window.innerHeight &&
-                            rect.left < window.innerWidth;
-                        if (!inViewport) continue;
-
-                        const overflowX = el.scrollWidth - el.clientWidth > 2;
-                        const overflowY = el.scrollHeight - el.clientHeight > 2;
-                        if (overflowX || overflowY) {
-                            issues.push({
-                                tag: el.tagName.toLowerCase(),
-                                text: text.slice(0, 80),
-                                overflow_x: overflowX,
-                                overflow_y: overflowY,
-                            });
-                        }
-                    }
-
-                    return issues.slice(0, 10);
-                }
-            """)
-
-            # Detect sticky or fixed UI overlapping key content in the mobile viewport.
-            result["layout"]["overlapping_elements"] = page.evaluate("""
-                () => {
-                    const overlaps = [];
-
-                    const visibleRects = (selector) => Array.from(document.querySelectorAll(selector))
-                        .map((el) => ({ el, rect: el.getBoundingClientRect(), style: window.getComputedStyle(el) }))
-                        .filter(({ rect, style }) =>
-                            style.display !== 'none' &&
-                            style.visibility !== 'hidden' &&
-                            rect.width > 0 &&
-                            rect.height > 0 &&
-                            rect.bottom > 0 &&
-                            rect.right > 0 &&
-                            rect.top < window.innerHeight &&
-                            rect.left < window.innerWidth
-                        );
-
-                    const fixedUi = visibleRects('body *')
-                        .filter(({ style, rect }) =>
-                            (style.position === 'fixed' || style.position === 'sticky') &&
-                            rect.width > 40 &&
-                            rect.height > 20
-                        )
-                        .slice(0, 12);
-
-                    const keyContent = visibleRects('h1, h2, p, a[href], button, input, textarea, select')
-                        .slice(0, 40);
-
-                    const labelFor = (el) => (
-                        (el.innerText || el.getAttribute('aria-label') || el.getAttribute('class') || el.tagName)
-                            .trim()
-                            .replace(/\\s+/g, ' ')
-                            .slice(0, 80)
-                    );
-
-                    const intersects = (a, b) => (
-                        a.left < b.right &&
-                        a.right > b.left &&
-                        a.top < b.bottom &&
-                        a.bottom > b.top
-                    );
-
-                    for (const ui of fixedUi) {
-                        for (const content of keyContent) {
-                            if (ui.el === content.el || ui.el.contains(content.el) || content.el.contains(ui.el)) {
-                                continue;
-                            }
-                            if (intersects(ui.rect, content.rect)) {
-                                overlaps.push({
-                                    fixed_element: labelFor(ui.el),
-                                    covered_element: labelFor(content.el),
-                                });
-                                if (overlaps.length >= 10) {
-                                    return overlaps;
-                                }
-                            }
-                        }
-                    }
-
-                    return overlaps;
-                }
-            """)
 
             mobile.close()
             browser.close()
@@ -383,17 +206,17 @@ def main():
         print("=" * 40)
 
         print("\nAbove the Fold:")
-        print(f"  H1 Visible: {'YES' if result['above_fold']['h1_visible'] else 'NO'}")
-        print(f"  CTA Visible: {'YES' if result['above_fold']['cta_visible'] else 'NO'}")
+        print(f"  H1 Visible: {'✓' if result['above_fold']['h1_visible'] else '✗'}")
+        print(f"  CTA Visible: {'✓' if result['above_fold']['cta_visible'] else '✗'}")
         print(f"  Hero Image: {result['above_fold']['hero_image'] or 'None found'}")
 
         print("\nMobile Responsiveness:")
-        print(f"  Viewport Meta: {'YES' if result['mobile']['viewport_meta'] else 'NO'}")
-        print(f"  Horizontal Scroll: {'YES (problem)' if result['mobile']['horizontal_scroll'] else 'NO'}")
+        print(f"  Viewport Meta: {'✓' if result['mobile']['viewport_meta'] else '✗'}")
+        print(f"  Horizontal Scroll: {'✗ (problem)' if result['mobile']['horizontal_scroll'] else '✓'}")
 
         print("\nTypography:")
         print(f"  Base Font Size: {result['fonts']['base_size']}px")
-        print(f"  Readable (>=16px): {'YES' if result['fonts']['readable'] else 'NO'}")
+        print(f"  Readable (≥16px): {'✓' if result['fonts']['readable'] else '✗'}")
 
         if result["error"]:
             print(f"\nError: {result['error']}")

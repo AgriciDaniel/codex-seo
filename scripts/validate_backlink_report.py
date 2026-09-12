@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Backlink report validation for Codex SEO.
+Backlink report validation for Claude SEO.
 
 Programmatically validates backlink analysis data before it is presented to
 the user. Catches common false findings, inconsistencies, and misleading

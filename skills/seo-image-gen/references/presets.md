@@ -42,7 +42,7 @@ Each preset is stored as `~/.banana/presets/NAME.json`:
 
 ## How Presets Merge into Reasoning Brief
 
-When a preset is active, Codex uses its values as defaults for the Reasoning Brief:
+When a preset is active, Claude uses its values as defaults for the Reasoning Brief:
 1. **Colors** → inform palette descriptions in Context and Style components
 2. **Style** → becomes the base for the Style component
 3. **Typography** → used for any text rendering
@@ -61,7 +61,7 @@ presets.py list
 # Show details
 presets.py show tech-saas
 
-# Create interactively (Codex fills in details from conversation)
+# Create interactively (Claude fills in details from conversation)
 presets.py create NAME --colors "#hex,#hex" --style "..." --mood "..."
 
 # Delete

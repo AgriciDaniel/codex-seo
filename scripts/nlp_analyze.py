@@ -2,8 +2,9 @@
 """
 Google Cloud Natural Language API - Entity, sentiment, and content analysis.
 
-Enhances E-E-A-T scoring with NLP entity coverage, sentiment analysis,
-and Google's own content classification taxonomy.
+Adds NLP entity coverage, sentiment analysis, and content classification
+as internal content-analysis enrichment only. It is unrelated to Google
+Search ranking or official E-E-A-T scoring.
 
 Usage:
     python nlp_analyze.py --text "Your content here" --json
@@ -23,19 +24,26 @@ except ImportError:
     sys.exit(1)
 
 try:
-    from google_auth import get_api_key
+    from google_auth import (
+        get_api_key,
+        google_api_key_headers,
+        redact_google_api_key,
+        validate_url,
+    )
+    from url_safety import URLSafetyError, safe_requests_get
 except ImportError:
     import os
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from google_auth import get_api_key
-
-try:
-    from seo_pipeline_utils import build_session, validate_public_url
-except ImportError:
-    build_session = None
-    validate_public_url = None
+    from google_auth import (
+        get_api_key,
+        google_api_key_headers,
+        redact_google_api_key,
+        validate_url,
+    )
+    from url_safety import URLSafetyError, safe_requests_get
 
 NLP_ENDPOINT = "https://language.googleapis.com/v2/documents:annotateText"
+NLP_V1_ENTITIES_ENDPOINT = "https://language.googleapis.com/v1/documents:analyzeEntities"
 
 # Free tier: 5,000 units/month per feature
 # Paid: $0.001 per 1,000-character unit for entity/sentiment
@@ -84,26 +92,79 @@ def analyze_text(
     if features is None:
         features = ["entities", "sentiment", "classify"]
 
-    # Build request
+    document = {
+        "type": "PLAIN_TEXT",
+        "content": text[:100000],  # API limit
+        "languageCode": language,
+    }
+
+    # Entities still use v1 because it returns Knowledge Graph metadata
+    # and salience consistently. Other features stay on v2 annotateText.
+    wants_entities = "entities" in features
+    if wants_entities:
+        body = {
+            "document": document,
+            "encodingType": "UTF8",
+        }
+        try:
+            resp = requests.post(
+                NLP_V1_ENTITIES_ENDPOINT,
+                headers=google_api_key_headers(key),
+                json=body,
+                timeout=30,
+            )
+
+            if resp.status_code == 403:
+                result["error"] = (
+                    "Cloud Natural Language API access denied. Enable it in "
+                    "GCP Console: APIs & Services > Library > Cloud Natural Language API. "
+                    "Billing must be enabled on the project."
+                )
+                return result
+
+            if resp.status_code == 429:
+                result["error"] = "NLP API quota exceeded. Free tier: 5,000 units/month."
+                return result
+
+            resp.raise_for_status()
+            entity_data = resp.json()
+        except requests.exceptions.RequestException as e:
+            result["error"] = f"NLP API request failed: {redact_google_api_key(e)}"
+            return result
+
+        for entity in entity_data.get("entities", []):
+            mentions = entity.get("mentions", [])
+            result["entities"].append({
+                "name": entity.get("name", ""),
+                "type": entity.get("type", "UNKNOWN"),
+                "salience": round(entity.get("salience", 0), 4),
+                "sentiment_score": entity.get("sentiment", {}).get("score"),
+                "sentiment_magnitude": entity.get("sentiment", {}).get("magnitude"),
+                "mention_count": len(mentions),
+                "metadata": entity.get("metadata", {}),
+            })
+
+        result["entities"].sort(key=lambda e: e["salience"], reverse=True)
+
     feature_map = {}
     for f in features:
         api_feature = FEATURES.get(f)
-        if api_feature:
+        if api_feature and api_feature != "extractEntities":
             feature_map[api_feature] = True
 
+    if not feature_map:
+        return result
+
     body = {
-        "document": {
-            "type": "PLAIN_TEXT",
-            "content": text[:100000],  # API limit
-            "languageCode": language,
-        },
+        "document": document,
         "features": feature_map,
         "encodingType": "UTF8",
     }
 
     try:
         resp = requests.post(
-            f"{NLP_ENDPOINT}?key={key}",
+            NLP_ENDPOINT,
+            headers=google_api_key_headers(key),
             json=body,
             timeout=30,
         )
@@ -123,24 +184,8 @@ def analyze_text(
         resp.raise_for_status()
         data = resp.json()
     except requests.exceptions.RequestException as e:
-        result["error"] = f"NLP API request failed: {e}"
+        result["error"] = f"NLP API request failed: {redact_google_api_key(e)}"
         return result
-
-    # Entities
-    for entity in data.get("entities", []):
-        mentions = entity.get("mentions", [])
-        result["entities"].append({
-            "name": entity.get("name", ""),
-            "type": entity.get("type", "UNKNOWN"),
-            "salience": round(entity.get("salience", 0), 4),
-            "sentiment_score": entity.get("sentiment", {}).get("score"),
-            "sentiment_magnitude": entity.get("sentiment", {}).get("magnitude"),
-            "mention_count": len(mentions),
-            "metadata": entity.get("metadata", {}),
-        })
-
-    # Sort by salience (most important first)
-    result["entities"].sort(key=lambda e: e["salience"], reverse=True)
 
     # Document sentiment
     doc_sentiment = data.get("documentSentiment", {})
@@ -208,23 +253,22 @@ def analyze_url(
     Returns:
         Dictionary with NLP analysis results.
     """
-    if not validate_public_url or not build_session:
-        return {"error": "Public URL validation helpers are unavailable."}
-    try:
-        url = validate_public_url(url)
-    except ValueError:
+    if not validate_url(url):
         return {"error": "Invalid URL. Only http/https URLs to public hosts are accepted."}
 
     # Fetch the page text
     try:
-        session = build_session()
-        resp = session.get(url, timeout=30, headers={
-            "User-Agent": "Mozilla/5.0 (compatible; CodexSEO/1.7 NLP Analyzer)"
-        })
+        resp = safe_requests_get(
+            url,
+            timeout=30,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; ClaudeSEO/1.7 NLP Analyzer)"},
+        )
         resp.raise_for_status()
         html = resp.text
-    except (requests.exceptions.RequestException, ValueError) as e:
-        return {"error": f"Could not fetch URL: {e}"}
+    except URLSafetyError as e:
+        return {"error": f"URL blocked by SSRF protection: {e}"}
+    except requests.exceptions.RequestException as e:
+        return {"error": f"Could not fetch URL: {redact_google_api_key(e)}"}
 
     # Extract text from HTML (simple approach)
     try:

@@ -7,32 +7,17 @@ description: >
   to rank by analyzing what Google rewards for each keyword. Use when user says
   "SXO", "search experience", "page type mismatch", "SERP analysis", "user story",
   "persona scoring", "why isn't my page ranking", "intent mismatch", or "wireframe".
-user-invokable: true
+user-invocable: true
 argument-hint: "<url> [keyword]"
 license: MIT
 metadata:
   author: AgriciDaniel
   original_author: "Florian Schmitz (Pro Hub Challenge)"
-  version: "1.9.6"
+  version: "2.2.4"
   category: seo
 ---
 
 # Search Experience Optimization (SXO)
-## Shared Data Cache
-
-**Step 0 -- Check shared data cache:**
-
-Before gathering, check `.seo-cache/` for reusable context from related SEO skills.
-Reference: `../seo/references/shared-data-cache.md` for schemas and dependency map.
-
-Check these cache files when present:
-- `.seo-cache/site-meta.json` for domain, business type, industry, and crawl context
-- `.seo-cache/audit-scores.json` for prior full-audit priorities
-- `.seo-cache/pages/{url-slug}/page-analysis.json` for page-level context when a URL is provided
-
-- If found: parse and use clearly valid fields (note "Using cached [X] from [date]")
-- If missing, corrupt, or irrelevant: continue with fresh evidence
-- If the user says "refresh" or "re-run": ignore cache reads and overwrite on write
 
 SXO bridges the gap between SEO (what Google rewards) and UX (what users need).
 Traditional SEO audits check technical health. SXO asks: "Does this page deserve
@@ -58,7 +43,7 @@ well-optimized it is.
 
 ### Step 1: Target Acquisition
 
-1. Fetch the target URL via `scripts/fetch_page.py` (SSRF-safe)
+1. Fetch the target URL via `scripts/render_page.py --mode auto` (SPA-aware and SSRF-safe)
 2. Parse with `scripts/parse_html.py` to extract: title, H1, meta description,
    headings hierarchy, word count, schema markup, CTAs, media elements
 3. If no keyword provided, extract primary keyword from title tag + H1 overlap
@@ -74,7 +59,7 @@ Read `references/page-type-taxonomy.md` for classification rules.
    - Page type (classify using taxonomy)
    - Content format (long-form, listicle, how-to, comparison, tool, video)
    - Word count estimate (from snippet length and page structure)
-   - Schema types present (from SERP features: ratings, FAQ, HowTo)
+   - Schema types present (from currently supported SERP features; exclude FAQ/HowTo)
    - Media signals (video carousel, image pack, thumbnail presence)
 3. Record SERP features present:
    - Featured snippet (paragraph / list / table / video)
@@ -185,8 +170,8 @@ Read `references/wireframe-templates.md` for templates.
 If DataForSEO MCP tools are available:
 
 1. **Before any API call**, run cost estimate and confirm with user
-2. Use `google_organic_serp` for precise SERP data (positions, features, snippets)
-3. Use `keyword_data` for search volume and competition metrics
+2. Use `serp_organic_live_advanced` for precise SERP data (positions, features, snippets)
+3. Use `kw_data_google_ads_search_volume` for search volume and competition metrics
 4. Fall back to WebSearch if DataForSEO unavailable -- note reduced precision in output
 
 ## SXO Score vs SEO Health Score
@@ -259,7 +244,7 @@ The SXO score is **separate** from the main SEO Health Score.
 ## Quality Checklist
 
 Before delivering results, verify:
-- [ ] Target URL was fetched via `scripts/fetch_page.py` (not raw curl/fetch)
+- [ ] Target URL was fetched via `scripts/render_page.py --mode auto` (not raw curl/fetch)
 - [ ] Page type classification uses taxonomy from references
 - [ ] At least 5 SERP results were analyzed
 - [ ] User stories cite specific SERP signals as evidence
@@ -267,8 +252,3 @@ Before delivering results, verify:
 - [ ] SXO score is clearly labeled as separate from SEO Health Score
 - [ ] Limitations section is present and honest
 - [ ] Cross-skill recommendations are included where relevant
-
-## Write to shared data cache
-
-After completing all work, write a concise JSON summary to `.seo-cache/` when the workflow produced durable findings.
-Use the schemas and naming rules in `../seo/references/shared-data-cache.md`; include at least `cache_type`, `analyzed_at`, source URL/domain, key findings, issues, recommendations, and tool limitations. Add `.seo-cache/` to `.gitignore` if it is missing.

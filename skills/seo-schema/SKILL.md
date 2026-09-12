@@ -4,31 +4,16 @@ description: >
   Detect, validate, and generate Schema.org structured data. JSON-LD format
   preferred. Use when user says "schema", "structured data", "rich results",
   "JSON-LD", or "markup".
-user-invokable: true
+user-invocable: true
 argument-hint: "[url]"
 license: MIT
 metadata:
   author: AgriciDaniel
-  version: "1.9.6"
+  version: "2.2.4"
   category: seo
 ---
 
 # Schema Markup Analysis & Generation
-## Shared Data Cache
-
-**Step 0 -- Check shared data cache:**
-
-Before gathering, check `.seo-cache/` for reusable context from related SEO skills.
-Reference: `../seo/references/shared-data-cache.md` for schemas and dependency map.
-
-Check these cache files when present:
-- `.seo-cache/site-meta.json` for domain, business type, industry, and crawl context
-- `.seo-cache/audit-scores.json` for prior full-audit priorities
-- `.seo-cache/pages/{url-slug}/page-analysis.json` for page-level context when a URL is provided
-
-- If found: parse and use clearly valid fields (note "Using cached [X] from [date]")
-- If missing, corrupt, or irrelevant: continue with fresh evidence
-- If the user says "refresh" or "re-run": ignore cache reads and overwrite on write
 
 ## Detection
 
@@ -50,9 +35,9 @@ Check these cache files when present:
   - Invalid date formats
 - Flag deprecated types (see below)
 
-## Schema Type Status (as of Feb 2026)
+## Schema Type Status (as of June 2026)
 
-Read `references/schema-types.md` for the full list. Key rules:
+Read `../seo/references/schema-types.md` for the full list. Key rules:
 
 ### ACTIVE (recommend freely):
 Organization, LocalBusiness, SoftwareApplication, WebApplication, Product (with Certification markup as of April 2025), ProductGroup, Offer, Service, Article, BlogPosting, NewsArticle, Review, AggregateRating, BreadcrumbList, WebSite, WebPage, Person, ProfilePage, ContactPage, VideoObject, ImageObject, Event, JobPosting, Course, DiscussionForumPosting
@@ -64,8 +49,8 @@ See `schema/templates.json` for ready-to-use JSON-LD templates for these types.
 
 > **JSON-LD and JavaScript rendering:** Per Google's December 2025 JS SEO guidance, structured data injected via JavaScript may face delayed processing. For time-sensitive markup (especially Product, Offer), include JSON-LD in the initial server-rendered HTML.
 
-### RESTRICTED (only for specific sites):
-- **FAQ**: ONLY for government and healthcare authority sites (restricted Aug 2023)
+### NO RICH RESULTS, KEEP IF USEFUL:
+- **FAQPage**: Google retired FAQ rich results for ALL sites on May 7, 2026 (supersedes the Aug 2023 gov/health restriction). No Google SERP rich-result benefit; flag existing FAQPage at Info (not Critical) rather than removal. For genuine user Q&A pages, use **QAPage**.
 
 ### DEPRECATED (never recommend):
 - **HowTo**: Rich results removed September 2023
@@ -73,9 +58,15 @@ See `schema/templates.json` for ready-to-use JSON-LD templates for these types.
 - **CourseInfo, EstimatedSalary, LearningVideo**: Retired June 2025
 - **ClaimReview**: Retired from rich results June 2025
 - **VehicleListing**: Retired from rich results June 2025
-- **Practice Problem**: Retired from rich results late 2025
-- **Dataset**: Retired from rich results late 2025
-- **Book Actions**: Deprecated then reversed, still functional as of Feb 2026 (historical note)
+- **Practice Problem**: Deprecation notice 2025-11-05; Search Console / Rich Results Test support removed 2026-01-06
+- **Book Actions**: Deprecated/removed from Google rich results; do not recommend it for SERP features.
+- Search Console / Rich Results Test / appearance-filter support for CourseInfo, EstimatedSalary, LearningVideo, SpecialAnnouncement, VehicleListing was removed 2025-09-09; Practice Problem support was removed 2026-01-06.
+
+### Supported for Dataset Search only:
+- **Dataset**: Not discontinued; consumed by Google Dataset Search, with no Google Search rich-result surface. Don't advise removal as if it were killed.
+
+### Still supported (do not flag):
+- QAPage (expanded comment-thread properties 2026-03-24), DiscussionForumPosting, Education Q&A (Quiz / `eduQuestionType=Flashcard`). For e-commerce, **hasAdultConsideration** (added 2026-05-22; value `https://schema.org/SexualContentConsideration`) is required for adult products.
 
 ## Generation
 
@@ -180,8 +171,3 @@ When generating schema for a page:
 | No schema markup found | Report that no JSON-LD, Microdata, or RDFa was detected. Recommend appropriate schema types based on page content analysis. |
 | Invalid JSON-LD syntax | Parse and report specific syntax errors (missing brackets, trailing commas, unquoted keys). Provide corrected JSON-LD output. |
 | Deprecated schema type detected | Flag the deprecated type with its retirement date. Recommend the current replacement type or advise removal if no replacement exists. |
-
-## Write to shared data cache
-
-After completing all work, write a concise JSON summary to `.seo-cache/` when the workflow produced durable findings.
-Use the schemas and naming rules in `../seo/references/shared-data-cache.md`; include at least `cache_type`, `analyzed_at`, source URL/domain, key findings, issues, recommendations, and tool limitations. Add `.seo-cache/` to `.gitignore` if it is missing.

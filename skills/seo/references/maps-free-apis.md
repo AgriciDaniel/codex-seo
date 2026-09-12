@@ -1,5 +1,5 @@
 <!-- Updated: 2026-03-23 -->
-# Free Maps APIs for codex-seo
+# Free Maps APIs for claude-seo
 
 ## Source Key
 
@@ -122,14 +122,14 @@ GeoJSON FeatureCollection. Each feature has `properties`: `name`, `city`, `state
 
 ```bash
 curl -s "https://nominatim.openstreetmap.org/search?q=123+Main+St+Austin+TX&format=json&addressdetails=1" \
-  -H "User-Agent: codex-seo/1.7.0"
+  -H "User-Agent: claude-seo/1.7.0"
 ```
 
 ### Reverse Geocoding
 
 ```bash
 curl -s "https://nominatim.openstreetmap.org/reverse?lat=40.7128&lon=-74.0060&format=json" \
-  -H "User-Agent: codex-seo/1.7.0"
+  -H "User-Agent: claude-seo/1.7.0"
 ```
 
 ### Response Fields
@@ -150,7 +150,7 @@ curl -s "https://nominatim.openstreetmap.org/reverse?lat=40.7128&lon=-74.0060&fo
 # Nominatim: enforce 1 req/sec with sleep
 for addr in "${addresses[@]}"; do
   curl -s "https://nominatim.openstreetmap.org/search?q=${addr}&format=json" \
-    -H "User-Agent: codex-seo/1.7.0"
+    -H "User-Agent: claude-seo/1.7.0"
   sleep 1.1
 done
 

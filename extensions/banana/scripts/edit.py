@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Banana Image Generation - Direct API Fallback: Image Editing
+"""Claude Banana - Direct API Fallback: Image Editing
 
 Edit images via Gemini REST API when MCP is unavailable.
 Uses only Python stdlib (no pip dependencies).
@@ -13,14 +13,37 @@ import argparse
 import base64
 import json
 import os
+import re
 import sys
 import urllib.request
 from datetime import datetime
 from pathlib import Path
 
-DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
+DEFAULT_MODEL = os.environ.get("NANOBANANA_MODEL")
 OUTPUT_DIR = Path.home() / "Documents" / "nanobanana_generated"
 API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
+_GOOGLE_API_KEY_PREFIX = "AI" + "za"
+_GOOGLE_API_KEY_RE = re.compile(_GOOGLE_API_KEY_PREFIX + r"[0-9A-Za-z_-]+")
+_GOOGLE_KEY_QUERY_RE = re.compile(r"([?&])key=[^&\s'\"<>)]*(&?)")
+_GOOGLE_KEY_BARE_RE = re.compile(r"\bkey=[^&\s'\"<>)]*")
+
+
+def _redact_google_api_key(value):
+    """Remove Google API keys from standalone fallback error output."""
+    text = str(value)
+
+    def drop_query_key(match):
+        separator, trailing_amp = match.groups()
+        if separator == "?" and trailing_amp:
+            return "?"
+        if separator == "&" and trailing_amp:
+            return "&"
+        return ""
+
+    text = _GOOGLE_KEY_QUERY_RE.sub(drop_query_key, text)
+    text = text.replace("?&", "?")
+    text = _GOOGLE_KEY_BARE_RE.sub("google_api_key_redacted", text)
+    return _GOOGLE_API_KEY_RE.sub("GOOGLE_API_KEY_REDACTED", text)
 
 
 def edit_image(image_path, prompt, model, api_key):
@@ -40,7 +63,7 @@ def edit_image(image_path, prompt, model, api_key):
                   ".webp": "image/webp", ".gif": "image/gif"}
     mime_type = mime_types.get(suffix, "image/png")
 
-    url = f"{API_BASE}/{model}:generateContent?key={api_key}"
+    url = f"{API_BASE}/{model}:generateContent"
 
     body = {
         "contents": [
@@ -60,7 +83,7 @@ def edit_image(image_path, prompt, model, api_key):
     req = urllib.request.Request(
         url,
         data=data,
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "X-Goog-Api-Key": api_key},
         method="POST",
     )
 
@@ -68,11 +91,13 @@ def edit_image(image_path, prompt, model, api_key):
         with urllib.request.urlopen(req, timeout=120) as resp:
             result = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
-        error_body = e.read().decode("utf-8") if e.fp else ""
+        error_body = _redact_google_api_key(
+            e.read().decode("utf-8", "replace") if e.fp else ""
+        )
         print(json.dumps({"error": True, "status": e.code, "message": error_body}))
         sys.exit(1)
     except urllib.error.URLError as e:
-        print(json.dumps({"error": True, "message": str(e.reason)}))
+        print(json.dumps({"error": True, "message": _redact_google_api_key(e.reason)}))
         sys.exit(1)
 
     # Extract image from response
@@ -118,10 +143,14 @@ def main():
     parser = argparse.ArgumentParser(description="Edit images via Gemini REST API")
     parser.add_argument("--image", required=True, help="Path to input image")
     parser.add_argument("--prompt", required=True, help="Edit instruction")
-    parser.add_argument("--model", default=DEFAULT_MODEL, help=f"Model ID (default: {DEFAULT_MODEL})")
+    parser.add_argument("--model", default=DEFAULT_MODEL, help="Model ID (or set NANOBANANA_MODEL env)")
     parser.add_argument("--api-key", default=None, help="Google AI API key (or set GOOGLE_AI_API_KEY env)")
 
     args = parser.parse_args()
+
+    if not args.model:
+        print(json.dumps({"error": True, "message": "No model. Set NANOBANANA_MODEL or pass --model."}))
+        sys.exit(1)
 
     api_key = args.api_key or os.environ.get("GOOGLE_AI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     if not api_key:

@@ -2,31 +2,16 @@
 name: seo-image-gen
 description: "AI image generation for SEO assets: OG/social preview images, blog hero images, schema images, product photography, infographics. Powered by Gemini via nanobanana-mcp. Requires banana extension installed. Use when user says \"generate image\", \"OG image\", \"social preview\", \"hero image\", \"blog image\", \"product photo\", \"infographic\", \"seo image\", \"create visual\", \"image-gen\", \"favicon\", \"schema image\", \"pinterest pin\", \"generate visual\", \"banner\", or \"thumbnail\"."
 argument-hint: "[og|hero|product|infographic|custom|batch] <description>"
-user-invokable: true
+user-invocable: true
 license: MIT
 compatibility: "Requires nanobanana MCP server"
 metadata:
   author: AgriciDaniel
-  version: "1.9.6"
+  version: "2.2.4"
   category: seo
 ---
 
 # SEO Image Gen: AI Image Generation for SEO Assets (Extension)
-## Shared Data Cache
-
-**Step 0 -- Check shared data cache:**
-
-Before gathering, check `.seo-cache/` for reusable context from related SEO skills.
-Reference: `../seo/references/shared-data-cache.md` for schemas and dependency map.
-
-Check these cache files when present:
-- `.seo-cache/site-meta.json` for domain, business type, industry, and crawl context
-- `.seo-cache/audit-scores.json` for prior full-audit priorities
-- `.seo-cache/pages/{url-slug}/page-analysis.json` for page-level context when a URL is provided
-
-- If found: parse and use clearly valid fields (note "Using cached [X] from [date]")
-- If missing, corrupt, or irrelevant: continue with fresh evidence
-- If the user says "refresh" or "re-run": ignore cache reads and overwrite on write
 
 Generate production-ready images for SEO use cases using Gemini's image generation
 via the banana Creative Director pipeline. Maps SEO needs to optimized domain modes,
@@ -34,12 +19,12 @@ aspect ratios, and resolution defaults.
 
 ## Architecture Note
 
-This extension is built on the Banana image-generation pipeline
-for SEO-specific image workflows in Codex.
+This extension is built on [Claude Banana](https://github.com/AgriciDaniel/banana-claude),
+the standalone AI image generation skill for Claude Code.
 
 This skill has two components with distinct roles:
 - **SKILL.md** (this file): Handles interactive `/seo image-gen` commands for generating images
-- **Agent** (`agents/seo-image-gen.toml`): Audit-only analyst spawned during `/seo audit` to assess existing OG/social images and produce a generation plan (never auto-generates)
+- **Agent** (`agents/seo-image-gen.md`): Audit-only analyst spawned during `/seo audit` to assess existing OG/social images and produce a generation plan (never auto-generates)
 
 ## Prerequisites
 
@@ -87,7 +72,8 @@ For every generation request:
 2. **Apply SEO defaults** from the use cases table above
 3. **Set aspect ratio** via `set_aspect_ratio` MCP tool
 4. **Construct Reasoning Brief** using the banana Creative Director pipeline:
-   - Load `references/prompt-engineering.md` for the 6-component system
+   - Use `${CLAUDE_SKILL_DIR}` as the installed skill root
+   - Load `${CLAUDE_SKILL_DIR}/references/prompt-engineering.md` for the 6-component system
    - Apply domain mode emphasis (Subject 30%, Style 25%, Context 15%, etc.)
    - Be SPECIFIC and VISCERAL: describe what the camera sees
 5. **Generate** via `gemini_generate_image` MCP tool
@@ -97,9 +83,9 @@ For every generation request:
 
 If the user mentions a brand or has SEO presets configured:
 ```bash
-python3 scripts/presets.py list
+claude-seo run --extension banana presets.py list
 ```
-Load matching preset and apply as defaults. Also check `references/seo-image-presets.md`
+Load matching preset and apply as defaults. Also check `${CLAUDE_SKILL_DIR}/references/seo-image-presets.md`
 for SEO-specific preset templates.
 
 ## Post-Generation SEO Checklist
@@ -135,33 +121,32 @@ After every successful generation, guide the user on:
 
 Image generation costs money. Be transparent:
 - Show estimated cost before generating (especially for batch)
-- Log every generation: `python3 scripts/cost_tracker.py log --model MODEL --resolution RES --prompt "brief"`
+- Log every generation: `claude-seo run --extension banana cost_tracker.py log --model MODEL --resolution RES --prompt "brief"`
 - Run `cost_tracker.py summary` if user asks about usage
 
-Approximate costs (gemini-3.1-flash):
-- 512: ~$0.02/image
-- 1K resolution: ~$0.04/image
-- 2K resolution: ~$0.08/image
-- 4K resolution: ~$0.16/image
+Pricing is not hard-coded. Check current Google pricing at
+https://ai.google.dev/gemini-api/docs/pricing, store dated values in
+`~/.banana/pricing.json`, and treat estimates as approximate.
 
 ## Model Routing
 
 | Scenario | Model | Why |
 |----------|-------|-----|
-| OG images, social previews | `gemini-3.1-flash-image-preview` @ 1K | Fast, cost-effective |
-| Hero images, product photos | `gemini-3.1-flash-image-preview` @ 2K | Quality + detail |
-| Infographics with text | `gemini-3.1-flash-image-preview` @ 2K, thinking: high | Better text rendering |
-| Quick drafts | `gemini-2.5-flash-image` @ 512 | Rapid iteration |
+| OG images, social previews | Verified `NANOBANANA_MODEL` @ 1K | Fast, cost-aware |
+| Hero images, product photos | Verified `NANOBANANA_MODEL` @ 2K if supported | Quality + detail |
+| Infographics with text | Verified `NANOBANANA_MODEL` @ 2K if supported, thinking: high | Better text rendering |
+| Quick drafts | Verified `NANOBANANA_MODEL` @ 512 if supported | Rapid iteration |
 
 ## Error Handling
 
 | Error | Resolution |
 |-------|-----------|
-| MCP not configured | Run `./extensions/banana/install.sh` |
+| MCP not configured | Run `./extensions/banana/install.sh` or `claude-seo run --extension banana setup_mcp.py --key YOUR_KEY` |
 | API key invalid | New key at https://aistudio.google.com/apikey |
-| Rate limited (429) | Wait 60s, retry. Free tier: ~10 RPM / ~500 RPD |
+| Rate limited (429) | Wait 60s, retry. Check current free-tier limits before batch operations |
 | `IMAGE_SAFETY` | Rephrase prompt - see `references/prompt-engineering.md` Safety section |
-| MCP unavailable | Fall back: `python3 scripts/generate.py --prompt "..." --aspect-ratio "16:9"` |
+| MCP unavailable | Fall back: `claude-seo run --extension banana generate.py --prompt "..." --aspect-ratio "16:9" --model "$NANOBANANA_MODEL"` |
+| CSV batch input | Plan first: `claude-seo run --extension banana batch.py --csv requests.csv --model "$NANOBANANA_MODEL"` |
 | Extension not installed | Show install instructions: `./extensions/banana/install.sh` |
 
 ## Cross-Skill Integration
@@ -173,13 +158,13 @@ Approximate costs (gemini-3.1-flash):
 ## Reference Documentation
 
 Load on-demand. Do NOT load all at startup:
-- `references/prompt-engineering.md`:6-component system, domain modes, templates
-- `references/gemini-models.md`:Model specs, rate limits, capabilities
-- `references/mcp-tools.md`:MCP tool parameters and responses
-- `references/post-processing.md`:ImageMagick/FFmpeg pipeline recipes
-- `references/cost-tracking.md`:Pricing, usage tracking
-- `references/presets.md`:Brand preset management
-- `references/seo-image-presets.md`:SEO-specific preset templates
+- `${CLAUDE_SKILL_DIR}/references/prompt-engineering.md`:6-component system, domain modes, templates
+- `${CLAUDE_SKILL_DIR}/references/gemini-models.md`:Model specs, rate limits, capabilities
+- `${CLAUDE_SKILL_DIR}/references/mcp-tools.md`:MCP tool parameters and responses
+- `${CLAUDE_SKILL_DIR}/references/post-processing.md`:ImageMagick/FFmpeg pipeline recipes
+- `${CLAUDE_SKILL_DIR}/references/cost-tracking.md`:Pricing, usage tracking
+- `${CLAUDE_SKILL_DIR}/references/presets.md`:Brand preset management
+- `${CLAUDE_SKILL_DIR}/references/seo-image-presets.md`:SEO-specific preset templates
 
 ## Response Format
 
@@ -189,8 +174,3 @@ After generating, always provide:
 3. **Settings**:model, aspect ratio, resolution
 4. **SEO checklist**:alt text suggestion, file naming, WebP conversion
 5. **Schema snippet**:ImageObject or og:image markup if applicable
-
-## Write to shared data cache
-
-After completing all work, write a concise JSON summary to `.seo-cache/` when the workflow produced durable findings.
-Use the schemas and naming rules in `../seo/references/shared-data-cache.md`; include at least `cache_type`, `analyzed_at`, source URL/domain, key findings, issues, recommendations, and tool limitations. Add `.seo-cache/` to `.gitignore` if it is missing.

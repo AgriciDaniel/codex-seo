@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Validate that the Banana image-generation MCP server is properly configured.
+Validate that the Claude Banana MCP server is properly configured.
 
 Checks:
-1. Codex settings.json has the MCP entry
+1. Claude Code settings.json has the MCP entry
 2. API key is present
 3. Node.js/npx is available
 4. Output directory exists or can be created
@@ -12,13 +12,13 @@ Usage:
     python3 validate_setup.py
 """
 
+import argparse
 import json
-import os
 import shutil
 import sys
 from pathlib import Path
 
-SETTINGS_PATH = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")) / "settings.json"
+SETTINGS_PATH = Path.home() / ".claude" / "settings.json"
 MCP_NAME = "nanobanana-mcp"
 OUTPUT_DIR = Path.home() / "Documents" / "nanobanana_generated"
 
@@ -32,21 +32,23 @@ def check(label: str, passed: bool, detail: str = "") -> bool:
     return passed
 
 
-def main() -> int:
-    if "--help" in sys.argv or "-h" in sys.argv:
-        print("Usage: python3 validate_setup.py [--help]")
-        print()
-        print("Validates Codex settings, nanobanana-mcp configuration, npx availability,")
-        print("and the local output directory used by image-generation workflows.")
-        return 0
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Validate the Claude Banana MCP server setup."
+    )
+    return parser.parse_args()
 
-    print("Banana Image Generation - Setup Validation")
+
+def main() -> int:
+    parse_args()
+
+    print("Claude Banana - Setup Validation")
     print("=" * 40)
     results = []
 
     # 1. Settings file exists
     results.append(check(
-        "Codex settings.json exists",
+        "Claude Code settings.json exists",
         SETTINGS_PATH.exists(),
         str(SETTINGS_PATH),
     ))
@@ -81,7 +83,7 @@ def main() -> int:
 
         # 5. Package is correct
         args = mcp.get("args", [])
-        has_pkg = any(str(arg).split("@latest", 1)[0] == "@ycse/nanobanana-mcp" for arg in args)
+        has_pkg = "@ycse/nanobanana-mcp" in args
         results.append(check(
             "Package is @ycse/nanobanana-mcp",
             has_pkg,

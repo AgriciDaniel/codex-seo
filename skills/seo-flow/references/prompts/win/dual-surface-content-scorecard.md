@@ -59,8 +59,8 @@ Input: existing service page with traffic but low form submissions. Output: scor
 ## See Also
 
 - [Prompt Library](../README.md)
-- [BOFU and Conversion Content](../../06-win/bofu-and-conversion-content.md)
-- [Dual-Surface Scorecard](../../06-win/dual-surface-scorecard.md)
+- BOFU and Conversion Content
+- Dual-Surface Scorecard
 
 ## Source Note
 

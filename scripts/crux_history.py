@@ -24,11 +24,21 @@ except ImportError:
     sys.exit(1)
 
 try:
-    from google_auth import get_api_key, validate_url
+    from google_auth import (
+        get_api_key,
+        google_api_key_headers,
+        redact_google_api_key,
+        validate_url,
+    )
 except ImportError:
     import os
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from google_auth import get_api_key, validate_url
+    from google_auth import (
+        get_api_key,
+        google_api_key_headers,
+        redact_google_api_key,
+        validate_url,
+    )
 
 CRUX_HISTORY_ENDPOINT = "https://chromeuxreport.googleapis.com/v1/records:queryHistoryRecord"
 
@@ -84,7 +94,8 @@ def query_history(
 
     try:
         resp = requests.post(
-            f"{CRUX_HISTORY_ENDPOINT}?key={api_key}",
+            CRUX_HISTORY_ENDPOINT,
+            headers=google_api_key_headers(api_key),
             json=body,
             timeout=30,
         )
@@ -104,7 +115,7 @@ def query_history(
         resp.raise_for_status()
         data = resp.json()
     except requests.exceptions.RequestException as e:
-        result["error"] = f"CrUX History API request failed: {e}"
+        result["error"] = f"CrUX History API request failed: {redact_google_api_key(e)}"
         return result
 
     record = data.get("record", {})

@@ -62,8 +62,8 @@ Expected output: a prioritized rewrite brief, facts to reconcile, internal links
 ## See Also
 
 - [Prompt Library](../README.md)
-- [FLOW Framework](../../01-framework/flow-framework.md)
-- [Bibliography](../../10-references/bibliography.md)
+- [FLOW Framework](../../flow-framework.md)
+- [Bibliography](../../bibliography.md)
 
 ## Source Note
 

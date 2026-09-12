@@ -1,12 +1,12 @@
-# Firecrawl Extension for Codex SEO
+# Firecrawl Extension for Claude SEO
 
 Full-site crawling, scraping, and site mapping powered by [Firecrawl](https://www.firecrawl.dev/). Enables comprehensive site-wide SEO analysis with JavaScript rendering support.
 
 ## Prerequisites
 
-- [Codex SEO](https://github.com/AgriciDaniel/codex-seo) installed
+- [Claude SEO](https://github.com/AgriciDaniel/claude-seo) installed
 - Node.js 20+
-- Firecrawl API key ([sign up](https://www.firecrawl.dev/app/sign-up) -- free tier: 500 credits/month)
+- Firecrawl API key ([sign up](https://www.firecrawl.dev/signup) -- free tier: 500 credits/month)
 
 ## Installation
 
@@ -33,9 +33,9 @@ The installer will prompt for your Firecrawl API key and configure the MCP serve
 | `/seo firecrawl scrape <url>` | Single-page deep scrape with JS rendering | 1 |
 | `/seo firecrawl search <query> <url>` | Search within a site | 1 per result |
 
-## Integration with Codex SEO
+## Integration with Claude SEO
 
-When installed, other Codex SEO skills automatically leverage Firecrawl:
+When installed, other Claude SEO skills automatically leverage Firecrawl:
 
 - **`/seo audit`**: Uses `map` to discover all pages, then `crawl` for deep analysis
 - **`/seo technical`**: Broken link detection across entire site
@@ -56,7 +56,7 @@ When installed, other Codex SEO skills automatically leverage Firecrawl:
 ## Troubleshooting
 
 **MCP not connecting?**
-- Check sanitized workflow status: `python scripts/run_skill_workflow.py --skill seo-firecrawl --json https://example.com`
+- Check: `cat ~/.claude/settings.json | python3 -m json.tool | grep firecrawl`
 - Manual config: See [FIRECRAWL-SETUP.md](docs/FIRECRAWL-SETUP.md)
 
 **Credits exhausted?**
@@ -79,4 +79,4 @@ When installed, other Codex SEO skills automatically leverage Firecrawl:
 
 - [Firecrawl Documentation](https://docs.firecrawl.dev/)
 - [Firecrawl MCP Server](https://www.npmjs.com/package/firecrawl-mcp)
-- [Codex SEO](https://github.com/AgriciDaniel/codex-seo)
+- [Claude SEO](https://github.com/AgriciDaniel/claude-seo)

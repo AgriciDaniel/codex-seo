@@ -1,30 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Firecrawl Extension Installer for Codex SEO
+# Firecrawl Extension Installer for Claude SEO
 # Wraps everything in main() to prevent partial execution on network failure
 
 main() {
-    CODEX_ROOT="${CODEX_HOME:-${HOME}/.codex}"
-    SKILLS_ROOT="${CODEX_ROOT}/skills"
-    SKILL_DIR="${SKILLS_ROOT}/seo-firecrawl"
-    AGENT_DIR="${CODEX_ROOT}/agents"
-    SEO_SKILL_DIR="${SKILLS_ROOT}/seo"
-    SETTINGS_FILE="${CODEX_ROOT}/settings.json"
+    SKILL_DIR="${HOME}/.claude/skills/seo-firecrawl"
+    AGENT_DIR="${HOME}/.claude/agents"
+    SEO_SKILL_DIR="${HOME}/.claude/skills/seo"
+    SETTINGS_FILE="${HOME}/.claude/settings.json"
 
     echo "════════════════════════════════════════"
     echo "║   Firecrawl Extension - Installer    ║"
-    echo "║   For Codex SEO                     ║"
+    echo "║   For Claude SEO                     ║"
     echo "════════════════════════════════════════"
     echo ""
 
     # Check prerequisites
     if [ ! -d "${SEO_SKILL_DIR}" ]; then
-        echo "x Codex SEO is not installed."
-        echo "  Install it first: curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/codex-seo/main/install.sh | bash"
+        echo "x Claude SEO is not installed."
+        echo "  Install it first: curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/claude-seo/main/install.sh | bash"
         exit 1
     fi
-    echo "v Codex SEO detected"
+    echo "v Claude SEO detected"
 
     if ! command -v node >/dev/null 2>&1; then
         echo "x Node.js is required but not installed."
@@ -63,20 +61,14 @@ main() {
     # Determine script directory (works for both ./install.sh and curl|bash)
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-    # Check if running from the repo, from an installed Codex SEO suite, or standalone.
-    if [ -f "${SCRIPT_DIR}/../../skills/seo-firecrawl/SKILL.md" ]; then
-        REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-        SKILL_SOURCE="${REPO_ROOT}/skills/seo-firecrawl/SKILL.md"
-        AGENT_SOURCE="${REPO_ROOT}/agents/seo-firecrawl.toml"
-    elif [ -f "${SCRIPT_DIR}/../../../seo-firecrawl/SKILL.md" ]; then
-        SKILL_SOURCE="$(cd "${SCRIPT_DIR}/../../../seo-firecrawl" && pwd)/SKILL.md"
-        AGENT_SOURCE="${AGENT_DIR}/seo-firecrawl.toml"
-    elif [ -f "${SCRIPT_DIR}/skills/seo-firecrawl/SKILL.md" ]; then
-        SKILL_SOURCE="${SCRIPT_DIR}/skills/seo-firecrawl/SKILL.md"
-        AGENT_SOURCE="${SCRIPT_DIR}/agents/seo-firecrawl.toml"
+    # Check if running from repo or standalone
+    if [ -f "${SCRIPT_DIR}/skills/seo-firecrawl/SKILL.md" ]; then
+        SOURCE_DIR="${SCRIPT_DIR}"
+    elif [ -f "${SCRIPT_DIR}/extensions/firecrawl/skills/seo-firecrawl/SKILL.md" ]; then
+        SOURCE_DIR="${SCRIPT_DIR}/extensions/firecrawl"
     else
         echo "x Cannot find extension source files."
-        echo "  Run this script from the codex-seo repo: ./extensions/firecrawl/install.sh"
+        echo "  Run this script from the claude-seo repo: ./extensions/firecrawl/install.sh"
         exit 1
     fi
 
@@ -84,68 +76,64 @@ main() {
     echo ""
     echo "-> Installing Firecrawl skill..."
     mkdir -p "${SKILL_DIR}"
-    cp "${SKILL_SOURCE}" "${SKILL_DIR}/SKILL.md"
-
-    echo "-> Installing Firecrawl agent..."
-    mkdir -p "${AGENT_DIR}"
-    if [ -f "${AGENT_SOURCE}" ] && [ "${AGENT_SOURCE}" != "${AGENT_DIR}/seo-firecrawl.toml" ]; then
-        cp "${AGENT_SOURCE}" "${AGENT_DIR}/seo-firecrawl.toml"
-    elif [ -f "${AGENT_DIR}/seo-firecrawl.toml" ]; then
-        echo "  v Codex TOML agent already installed"
-    else
-        echo "  Warning: Codex TOML agent not found; reinstall the core Codex SEO suite if delegation is unavailable."
-    fi
+    cp "${SOURCE_DIR}/skills/seo-firecrawl/SKILL.md" "${SKILL_DIR}/SKILL.md"
 
     # Merge MCP config into settings.json
     echo "-> Configuring MCP server..."
 
-    python3 -c "
-import json, os, sys
+    # Credentials are passed as argv (never interpolated into the source string)
+    # and the settings file is written atomically with 0600 permissions.
+    python3 - "${SETTINGS_FILE}" "${FIRECRAWL_API_KEY}" <<'PY'
+import json, os, sys, tempfile
 
-settings_path = '${SETTINGS_FILE}'
-api_key = '''${FIRECRAWL_API_KEY}'''
+settings_path, api_key = sys.argv[1:3]
 
-# Read existing settings or create new
 if os.path.exists(settings_path):
-    with open(settings_path, 'r') as f:
-        settings = json.load(f)
+    try:
+        with open(settings_path) as f:
+            settings = json.load(f)
+    except json.JSONDecodeError:
+        settings = {}
 else:
     settings = {}
 
-# Ensure mcpServers key exists
-if 'mcpServers' not in settings:
-    settings['mcpServers'] = {}
-
-# Add Firecrawl server config
-settings['mcpServers']['firecrawl-mcp'] = {
+settings.setdefault('mcpServers', {})['firecrawl-mcp'] = {
     'command': 'npx',
-    'args': ['-y', 'firecrawl-mcp'],
+    'args': ['-y', 'firecrawl-mcp@3.11.0'],
     'env': {
-        'FIRECRAWL_API_KEY': api_key
-    }
+        'FIRECRAWL_API_KEY': api_key,
+    },
 }
 
-# Write back
-os.makedirs(os.path.dirname(settings_path), exist_ok=True)
-with open(settings_path, 'w') as f:
-    json.dump(settings, f, indent=2)
+os.makedirs(os.path.dirname(settings_path) or '.', exist_ok=True)
+fd, tmp = tempfile.mkstemp(dir=os.path.dirname(settings_path) or '.', prefix='.settings.', suffix='.json')
+try:
+    with os.fdopen(fd, 'w') as f:
+        json.dump(settings, f, indent=2)
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, settings_path)
+except Exception:
+    if os.path.exists(tmp):
+        os.unlink(tmp)
+    raise
 
 print('  v MCP server configured in settings.json')
-" || {
+PY
+    if [ $? -ne 0 ]; then
         echo "  Warning: Could not auto-configure MCP server."
-        echo "  Add the firecrawl-mcp server manually to ~/.codex/settings.json"
+        echo "  Add the firecrawl-mcp server manually to ~/.claude/settings.json"
         echo "  See: extensions/firecrawl/docs/FIRECRAWL-SETUP.md"
-    }
+    fi
 
     # Pre-warm npm package without starting the MCP server binary.
     echo "-> Pre-downloading firecrawl-mcp..."
-    npx --yes --package=firecrawl-mcp -- node -e "" >/dev/null 2>&1 || true
+    npx --yes --package=firecrawl-mcp@3.11.0 -- node -e "" >/dev/null 2>&1 || true
 
     echo ""
     echo "v Firecrawl extension installed successfully!"
     echo ""
     echo "Usage:"
-    echo "  1. Restart Codex CLI"
+    echo "  1. Start Claude Code:  claude"
     echo "  2. Run commands:"
     echo "     /seo firecrawl crawl https://example.com"
     echo "     /seo firecrawl map https://example.com"

@@ -1,45 +1,28 @@
 ---
 name: seo-dataforseo
 description: >
-  Live SEO data via DataForSEO MCP server. SERP analysis (Google, Bing, Yahoo,
-  YouTube, Google Images), keyword research (volume, difficulty, intent, trends),
-  backlink profiles, on-page analysis (Lighthouse, content parsing), competitor
-  analysis, content analysis, business listings, AI visibility (ChatGPT scraper,
-  LLM mention tracking), and domain analytics. Requires DataForSEO extension
+  Live SEO data via DataForSEO MCP server: SERP analysis, keyword research
+  (volume, difficulty, intent, trends), backlink profiles, on-page analysis,
+  competitor and content analysis, business listings, AI visibility (LLM
+  mention tracking), and domain analytics. Requires DataForSEO extension
   installed. Use when user says "dataforseo", "live SERP", "keyword volume",
-  "backlink data", "competitor data", "AI visibility check", "LLM mentions",
-  "image SERP", "google images", "image rankings", or "real search data".
-user-invokable: true
+  "backlink data", "AI visibility check", or "real search data".
+user-invocable: true
 argument-hint: "[command] [query]"
 license: MIT
 compatibility: "Requires DataForSEO MCP server"
 metadata:
   author: AgriciDaniel
-  version: "1.9.6"
+  version: "2.2.4"
   category: seo
 ---
 
 # DataForSEO: Live SEO Data (Extension)
-## Shared Data Cache
-
-**Step 0 -- Check shared data cache:**
-
-Before gathering, check `.seo-cache/` for reusable context from related SEO skills.
-Reference: `../seo/references/shared-data-cache.md` for schemas and dependency map.
-
-Check these cache files when present:
-- `.seo-cache/site-meta.json` for domain, business type, industry, and crawl context
-- `.seo-cache/audit-scores.json` for prior full-audit priorities
-- `.seo-cache/pages/{url-slug}/page-analysis.json` for page-level context when a URL is provided
-
-- If found: parse and use clearly valid fields (note "Using cached [X] from [date]")
-- If missing, corrupt, or irrelevant: continue with fresh evidence
-- If the user says "refresh" or "re-run": ignore cache reads and overwrite on write
 
 Live search data via the DataForSEO MCP server. Provides real-time SERP results
 (organic + images), keyword metrics, backlink profiles, on-page analysis, content
 analysis, business listings, AI visibility checking, and LLM mention tracking
-across 10 API modules with 79+ MCP tools.
+across 9 API modules with 79+ MCP tools.
 
 ## Prerequisites
 
@@ -65,7 +48,7 @@ DataForSEO charges per API call. Be efficient:
 
 **Before every DataForSEO MCP call**, run cost estimation:
 ```
-python scripts/dataforseo_costs.py check <endpoint> [--count N]
+python ~/.codex/skills/seo/scripts/dataforseo_costs.py check <endpoint> [--count N]
 ```
 
 - If `"status": "approved"` → proceed with the API call
@@ -74,7 +57,7 @@ python scripts/dataforseo_costs.py check <endpoint> [--count N]
 
 **After each API call completes**, log the cost:
 ```
-python scripts/dataforseo_costs.py log <endpoint> <actual_cost>
+python ~/.codex/skills/seo/scripts/dataforseo_costs.py log <endpoint> <actual_cost>
 ```
 
 **User commands for cost management:**
@@ -138,7 +121,7 @@ Fetch YouTube search results. Valuable for GEO. YouTube mentions correlate most 
 
 ### `/seo dataforseo youtube <video_id>`
 
-Deep analysis of a specific YouTube video: info, comments, and subtitles. YouTube mentions have the strongest correlation (0.737) with AI visibility, making this critical for GEO analysis.
+Deep analysis of a specific YouTube video: info, comments, and subtitles. Some third-party studies report a 0.737 correlation between YouTube mentions and AI visibility, so treat this as a methodology-dependent GEO signal.
 
 **MCP tools:** `serp_youtube_video_info_live_advanced`, `serp_youtube_video_comments_live_advanced`, `serp_youtube_video_subtitles_live_advanced`
 
@@ -356,7 +339,7 @@ Search business listings for local SEO competitive analysis.
 
 ### `/seo dataforseo ai-scrape <query>`
 
-Scrape what ChatGPT web search returns for a query. Real GEO visibility check: see which sources ChatGPT cites for your target keywords.
+Scrape what ChatGPT web search returns for a query. ChatGPT visibility check: see which sources ChatGPT cites for your target keywords. Check Google AI Overviews and AI Mode with GSC gen-AI reports when available.
 
 **MCP tools:** `ai_optimization_chat_gpt_scraper`
 
@@ -390,7 +373,7 @@ Additional DataForSEO MCP tools are available for internal use but do not have d
 
 ## Cross-Skill Integration
 
-When DataForSEO MCP tools are available, other codex-seo skills can leverage live data:
+When DataForSEO MCP tools are available, other claude-seo skills can leverage live data:
 
 - **seo-audit**:Spawn `seo-dataforseo` agent for real SERP, backlink, on-page, and listings data
 - **seo-technical**:Use `on_page_instant_pages` / `on_page_lighthouse` for real crawl data, `domain_analytics_technologies_domain_technologies` for stack detection
@@ -410,14 +393,9 @@ When DataForSEO MCP tools are available, other codex-seo skills can leverage liv
 
 ## Output Formatting
 
-Match existing codex-seo output patterns:
+Match existing claude-seo output patterns:
 - Use tables for comparative data
 - Prioritize issues as Critical > High > Medium > Low
 - Include specific, actionable recommendations
 - Show scores as XX/100 where applicable
 - Note data source as "DataForSEO (live)" to distinguish from static analysis
-
-## Write to shared data cache
-
-After completing all work, write a concise JSON summary to `.seo-cache/` when the workflow produced durable findings.
-Use the schemas and naming rules in `../seo/references/shared-data-cache.md`; include at least `cache_type`, `analyzed_at`, source URL/domain, key findings, issues, recommendations, and tool limitations. Add `.seo-cache/` to `.gitignore` if it is missing.

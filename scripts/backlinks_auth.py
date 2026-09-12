@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Backlink API credential management for Codex SEO.
+Backlink API credential management for Claude SEO.
 
 Loads and validates credentials for Moz Link Explorer API,
 Bing Webmaster Tools API, and Common Crawl web graphs.
@@ -20,35 +20,25 @@ import os
 import sys
 from typing import Optional
 
-# Import SSRF protection from google_auth (reuse, don't duplicate)
+# Import SSRF protection from the canonical url_safety module.
+# google_auth.validate_url is a back-compat wrapper around the same function.
 _SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, _SCRIPTS_DIR)
+if _SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPTS_DIR)
 try:
-    from google_auth import validate_url
-except ImportError:
-    # Fallback: basic URL validation if google_auth not available
-    def validate_url(url: str) -> bool:
-        from urllib.parse import urlparse
-        parsed = urlparse(url)
-        if parsed.scheme not in ("http", "https"):
-            return False
-        if not parsed.hostname:
-            return False
-        blocked = [
-            "localhost",
-            "127.0.0.1",
-            ".".join(("0", "0", "0", "0")),
-            "::1",
-            "metadata.google.internal",
-        ]
-        if parsed.hostname in blocked:
-            return False
-        return True
+    from url_safety import validate_url
+except ImportError as _import_exc:
+    # Hard fail: a private-IP/loopback fallback that omits SSRF checks is
+    # worse than no validation at all. The previous fallback shipped in
+    # v1.9.0 silently allowed private IP literals and was flagged in the
+    # cybersecurity audit (v2.0.0 Phase H). Refuse to run instead.
+    raise RuntimeError(
+        "scripts/url_safety.py is required for SSRF protection. "
+        "Install with: pip install -r requirements.txt"
+    ) from _import_exc
 
-CONFIG_PATH = os.path.expanduser("~/.config/codex-seo/backlinks-api.json")
-LEGACY_CONFIG_PATH = os.path.expanduser("~/.config/claude-seo/backlinks-api.json")
-CACHE_DIR = os.path.expanduser("~/.cache/codex-seo/commoncrawl")
-LEGACY_CACHE_DIR = os.path.expanduser("~/.cache/claude-seo/commoncrawl")
+CONFIG_PATH = os.path.expanduser("~/.config/claude-seo/backlinks-api.json")
+CACHE_DIR = os.path.expanduser("~/.cache/claude-seo/commoncrawl")
 
 # Which services need which auth type
 SERVICE_AUTH = {
@@ -67,19 +57,11 @@ SERVICE_NAMES = {
 }
 
 
-def _first_existing_path(*paths: str) -> str:
-    """Return the first existing path, or the first candidate if none exist."""
-    for path in paths:
-        if os.path.exists(path):
-            return path
-    return paths[0]
-
-
 def load_config() -> dict:
     """
     Load configuration from config file with environment variable fallbacks.
 
-    Reads ~/.config/codex-seo/backlinks-api.json first. Any missing fields
+    Reads ~/.config/claude-seo/backlinks-api.json first. Any missing fields
     are filled from environment variables.
 
     Returns:
@@ -93,11 +75,10 @@ def load_config() -> dict:
         "commoncrawl_cache_dir": CACHE_DIR,
     }
 
-    # Load from Codex config, with read-only fallback for old Claude SEO installs.
-    config_path = _first_existing_path(CONFIG_PATH, LEGACY_CONFIG_PATH)
-    if os.path.exists(config_path):
+    # Load from config file
+    if os.path.exists(CONFIG_PATH):
         try:
-            with open(config_path, "r") as f:
+            with open(CONFIG_PATH, "r") as f:
                 file_config = json.load(f)
             for k, v in file_config.items():
                 if v is not None and v != "":
@@ -113,10 +94,9 @@ def load_config() -> dict:
         config["bing_api_key"] = os.environ.get("BING_WEBMASTER_API_KEY")
 
     # Expand cache dir path
-    cache_dir = config.get("commoncrawl_cache_dir", CACHE_DIR)
-    if cache_dir == LEGACY_CACHE_DIR and not os.path.exists(CACHE_DIR):
-        cache_dir = LEGACY_CACHE_DIR
-    config["commoncrawl_cache_dir"] = os.path.expanduser(cache_dir)
+    config["commoncrawl_cache_dir"] = os.path.expanduser(
+        config.get("commoncrawl_cache_dir", CACHE_DIR)
+    )
 
     return config
 
@@ -148,7 +128,13 @@ def check_credentials(service: str) -> dict:
         api_key = config.get("moz_api_key")
         if api_key:
             result["available"] = True
-            result["method"] = "api_key"
+            result["method"] = "api_key_configured"
+            result["verified"] = False
+            result["note"] = (
+                "Moz credentials are configured but not live-verified by --check. "
+                "Run a Moz command such as `python scripts/moz_api.py metrics "
+                "example.com --json` to test quota and permissions."
+            )
         else:
             result["error"] = (
                 "No Moz API key found. Set MOZ_API_KEY environment variable "
@@ -160,14 +146,20 @@ def check_credentials(service: str) -> dict:
         api_key = config.get("bing_api_key")
         if api_key:
             result["available"] = True
-            result["method"] = "api_key"
+            result["method"] = "api_key_configured"
+            result["verified"] = False
             sites = config.get("bing_verified_sites", [])
             if sites:
                 result["verified_sites"] = sites
+                result["note"] = (
+                    "Bing credentials and site list are configured but not live-verified "
+                    "by --check. Run a Bing Webmaster query to test access."
+                )
             else:
                 result["note"] = (
-                    "No verified sites listed. Add 'bing_verified_sites' to config "
-                    "for site-specific backlink queries."
+                    "Bing API key is configured but not live-verified. No verified "
+                    "sites are listed; add 'bing_verified_sites' to config for "
+                    "site-specific backlink queries."
                 )
         else:
             result["error"] = (
@@ -233,7 +225,7 @@ def detect_tier() -> dict:
                 "Moz DA/PA/Spam Score (any domain)",
                 "Moz referring domains and anchors",
                 "Bing inbound links (verified sites)",
-                "Bing competitor comparison",
+                "Bing comparison between registered properties",
                 "Common Crawl domain-level graph",
                 "Backlink verification crawler",
             ],
@@ -250,7 +242,7 @@ def detect_tier() -> dict:
                 "Backlink verification crawler",
             ],
             "missing": (
-                "Add Bing Webmaster API key for competitor comparison. "
+                "Add Bing Webmaster API key for registered-property link data. "
                 "Free at https://www.bing.com/webmasters"
             ),
         }
@@ -301,7 +293,7 @@ def print_setup_instructions():
 Backlink API Setup Instructions
 ================================
 
-Free backlink data sources for Codex SEO. No payment required for any of these.
+Free backlink data sources for Claude SEO. No payment required for any of these.
 
 TIER 0: ALWAYS AVAILABLE (no setup needed)
 ------------------------------------------
@@ -317,10 +309,13 @@ TIER 1: MOZ API (free signup, 2,500 rows/month)
      (Free tier continues after trial with 2,500 rows/month)
   3. A valid credit card is required at signup but will NOT be charged
   4. After signup, go to https://moz.com/products/api/keys
-  5. Copy your API key (looks like: mozscape-xxxxxxxx)
+  5. Copy your API credentials. Claude SEO accepts either:
+     - a token-style key (looks like: mozscape-xxxxxxxx)
+     - free-tier accessId:secret credentials, raw or base64 encoded
 
   Configure:
     export MOZ_API_KEY="mozscape-xxxxxxxx"
+    # or: export MOZ_API_KEY="accessId:secret"
 
   Or save to """ + CONFIG_PATH + """:
     {
@@ -330,6 +325,9 @@ TIER 1: MOZ API (free signup, 2,500 rows/month)
   Provides: Domain Authority, Page Authority, Spam Score, link counts,
             referring domains, anchor text distribution (any domain).
   Rate limit: 1 request per 10 seconds.
+  Note: `--check moz` reports whether credentials are configured; run
+        `python scripts/moz_api.py metrics example.com --json` for a live
+        permission/quota test.
 
 TIER 2: + BING WEBMASTER TOOLS API (free, verified sites)
 -----------------------------------------------------------
@@ -364,12 +362,14 @@ PREMIUM: DATAFORSEO EXTENSION (paid, most comprehensive)
 VERIFY CONFIGURATION:
   python scripts/backlinks_auth.py --check
   python scripts/backlinks_auth.py --tier
+  `--check` is configuration-only for Moz/Bing and does not claim live
+  verification unless a specific API query has been run.
 """)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Backlink API credential management for Codex SEO"
+        description="Backlink API credential management for Claude SEO"
     )
     parser.add_argument(
         "--check",

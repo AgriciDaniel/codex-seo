@@ -1,4 +1,4 @@
-# Banana Image Generation Extension for Codex SEO
+# Banana Image Generation Extension for Claude SEO
 
 Generate production-ready SEO images using AI: OG/social previews, blog heroes,
 product photography, infographics, and more. Powered by Google Gemini via the
@@ -6,11 +6,11 @@ banana Creative Director pipeline.
 
 ## Prerequisites
 
-> This extension wraps the Banana image-generation pipeline for SEO-specific use cases.
-> Install the standalone image-generation skill separately for general-purpose image generation.
+> This extension wraps [Claude Banana](https://github.com/AgriciDaniel/banana-claude)
+> for SEO-specific use cases. Install the standalone skill for general-purpose image generation.
 
-- **Codex SEO** installed (`~/.codex/skills/seo/`)
-- **Node.js 18+** with npx
+- **Claude SEO** installed (`~/.claude/skills/seo/`)
+- **Node.js 20+** with npx
 - **Google AI API key** (free at [aistudio.google.com/apikey](https://aistudio.google.com/apikey))
 - **ImageMagick** (optional, for post-processing)
 
@@ -21,10 +21,10 @@ banana Creative Director pipeline.
 ```
 
 The installer will:
-1. Verify Codex SEO is installed
+1. Verify Claude SEO is installed
 2. Prompt for your Google AI API key (if nanobanana-mcp not already configured)
 3. Install the `seo-image-gen` skill and agent
-4. Configure the MCP server in `~/.codex/settings.json`
+4. Configure the MCP server in `~/.claude/settings.json`
 
 ## Commands
 
@@ -37,20 +37,25 @@ The installer will:
 | `/seo image-gen custom <description>` | Custom with full Creative Director pipeline |
 | `/seo image-gen batch <description> [N]` | Generate N variations (default: 3) |
 
+CSV batch planning helper:
+```bash
+claude-seo run --extension banana batch.py --csv requests.csv --model "$NANOBANANA_MODEL"
+```
+
 ## Use Case Defaults
 
-| Use Case | Aspect Ratio | Resolution | Domain Mode | Cost |
-|----------|-------------|------------|-------------|------|
-| OG/Social Preview | 16:9 | 1K | Product/UI | ~$0.04 |
-| Blog Hero | 16:9 | 2K | Cinema/Editorial | ~$0.08 |
-| Product Photo | 4:3 | 2K | Product | ~$0.08 |
-| Infographic | 2:3 | 4K | Infographic | ~$0.16 |
-| Social Square | 1:1 | 1K | UI/Web | ~$0.04 |
-| Favicon/Icon | 1:1 | 512 | Logo | ~$0.02 |
+| Use Case | Aspect Ratio | Resolution | Domain Mode | Pricing |
+|----------|-------------|------------|-------------|---------|
+| OG/Social Preview | 16:9 | 1K | Product/UI | Verify current pricing |
+| Blog Hero | 16:9 | 2K | Cinema/Editorial | Verify current pricing |
+| Product Photo | 4:3 | 2K | Product | Verify current pricing |
+| Infographic | 2:3 | 4K | Infographic | Verify current pricing |
+| Social Square | 1:1 | 1K | UI/Web | Verify current pricing |
+| Favicon/Icon | 1:1 | 512 | Logo | Verify current pricing |
 
 ## How It Works
 
-Codex acts as a **Creative Director**. It never passes raw text to the API.
+Claude acts as a **Creative Director**. It never passes raw text to the API.
 Instead, it analyzes your intent, selects the optimal domain mode, and constructs
 an optimized prompt using a proven 6-component Reasoning Brief system:
 
@@ -63,7 +68,7 @@ an optimized prompt using a proven 6-component Reasoning Brief system:
 
 ## Post-Generation SEO Checklist
 
-After every generation, Codex provides:
+After every generation, Claude provides:
 - Alt text suggestion (keyword-rich, descriptive)
 - SEO-friendly file naming convention
 - WebP conversion command
@@ -86,7 +91,7 @@ The agent never auto-generates images. It produces a plan for your review.
 ./extensions/banana/uninstall.sh
 ```
 
-This removes the skill and agent. If you also use the standalone Banana image-generation skill,
+This removes the skill and agent. If you also use [Claude Banana](https://github.com/AgriciDaniel/banana-claude),
 the MCP server config is preserved.
 
 ## Troubleshooting

@@ -17,7 +17,7 @@ Codex-first SEO analysis suite with 1 orchestrator skill, 26 specialist workflow
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](pyproject.toml)
 [![Workflows](https://img.shields.io/badge/SEO_Workflows-26-orange)](docs/COMMANDS.md)
 
-Codex SEO is a Codex-native port of [`AgriciDaniel/claude-seo`](https://github.com/AgriciDaniel/claude-seo), synchronized to upstream `main` at `a9cf338` and adapted for Codex skills, Codex plugins, TOML agents, shared cache artifacts, and repeatable local/API execution.
+Codex SEO is a Codex-native port of [`AgriciDaniel/claude-seo`](https://github.com/AgriciDaniel/claude-seo), synchronized to upstream `main` at `09d37c7b66ed3ca9c6efbdb765a805a6c76a8f01` and adapted for Codex skills, Codex plugins, TOML agents, shared cache artifacts, and repeatable local/API execution.
 
 It covers technical SEO, on-page analysis, content quality, E-E-A-T, schema markup, image optimization, sitemap architecture, Core Web Vitals, GEO/AEO for AI search, backlinks, local SEO, maps intelligence, Google APIs, semantic clustering, SXO, drift monitoring, e-commerce SEO, hreflang, FLOW prompts, DataForSEO, Firecrawl, and Gemini/nanobanana image workflows.
 
@@ -45,8 +45,8 @@ It covers technical SEO, on-page analysis, content quality, E-E-A-T, schema mark
 ## Status
 
 - Repository visibility: public.
-- Current release: [`v1.9.6-codex.5`](https://github.com/AgriciDaniel/codex-seo/releases/tag/v1.9.6-codex.5).
-- Installer default ref: `v1.9.6-codex.5`.
+- Current release: [`v2.2.4-codex.0`](https://github.com/AgriciDaniel/codex-seo/releases/tag/v2.2.4-codex.0).
+- Installer default ref: `v2.2.4-codex.0`.
 - Latest local validation: 52 tests passing, full installed smoke suite passing, demo readiness passing.
 - Runtime credentials stay outside the repo under Codex/local config paths.
 - Discovery topics: `codex`, `codex-cli`, `codex-skills`, `seo`, `ai-seo`, `ai-search`, `technical-seo`, `generative-engine-optimization`, `core-web-vitals`, `schema-markup`, `local-seo`, `ecommerce-seo`, `content-strategy`, `google-search-console`, `dataforseo`, `mcp`, `python`, `automation`, `marketing-automation`, `open-source`.
@@ -56,13 +56,13 @@ It covers technical SEO, on-page analysis, content quality, E-E-A-T, schema mark
 ### One-Line Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/codex-seo/v1.9.6-codex.5/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/codex-seo/v2.2.4-codex.0/install.sh | bash
 ```
 
 Windows:
 
 ```powershell
-irm https://raw.githubusercontent.com/AgriciDaniel/codex-seo/v1.9.6-codex.5/install.ps1 | iex
+irm https://raw.githubusercontent.com/AgriciDaniel/codex-seo/v2.2.4-codex.0/install.ps1 | iex
 ```
 
 ### Review Before Installing
@@ -88,7 +88,7 @@ The installer copies the skill suite into `~/.codex/skills/`, installs TOML agen
 ```bash
 CODEX_HOME=~/.codex \
 CODEX_SEO_REPO=https://github.com/AgriciDaniel/codex-seo \
-CODEX_SEO_REF=v1.9.6-codex.5 \
+CODEX_SEO_REF=v2.2.4-codex.0 \
 bash install.sh
 ```
 
@@ -96,7 +96,7 @@ bash install.sh
 |---|---|
 | `CODEX_HOME` | Alternate Codex home. Defaults to `~/.codex`. |
 | `CODEX_SEO_REPO` | Git URL, fork URL, or local repository path. |
-| `CODEX_SEO_REF` | Branch, tag, or commit. Defaults to `v1.9.6-codex.5`. |
+| `CODEX_SEO_REF` | Branch, tag, or commit. Defaults to `v2.2.4-codex.0`. |
 | `CODEX_SEO_SKIP_PLAYWRIGHT_BROWSER=1` | Skip Chromium install for visual/PDF workflows. |
 | `CODEX_SEO_PLAYWRIGHT_WITH_DEPS=1` | Ask Playwright to install system dependencies where supported. |
 

@@ -2,7 +2,7 @@
 
 ## 1. Get Your API Key
 
-1. Go to [firecrawl.dev/app/sign-up](https://www.firecrawl.dev/app/sign-up)
+1. Go to [firecrawl.dev/app/sign-up](https://www.firecrawl.dev/signup)
 2. Create a free account (500 credits/month included)
 3. Navigate to **API Keys** in the dashboard
 4. Copy your API key (starts with `fc-`)
@@ -19,7 +19,7 @@ It will prompt for your API key and configure the MCP server.
 
 ## 3. Manual MCP Configuration
 
-If the installer fails, add this to `~/.codex/settings.json` manually:
+If the installer fails, add this to `~/.claude/settings.json` manually:
 
 ```json
 {
@@ -37,13 +37,13 @@ If the installer fails, add this to `~/.codex/settings.json` manually:
 
 ## 4. Verify Installation
 
-Start Codex and try:
+Start Claude Code and try:
 
 ```
 /seo firecrawl map https://example.com
 ```
 
-You should see a list of discovered URLs. If you get a "tool not available" error, restart Codex to reload MCP servers.
+You should see a list of discovered URLs. If you get a "tool not available" error, restart Claude Code to reload MCP servers.
 
 ## 5. Understanding Credits
 

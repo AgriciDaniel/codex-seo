@@ -50,10 +50,13 @@ When only Common Crawl is available, cap the maximum health score at 70/100 and 
 - **Endpoint:** `https://ssl.bing.com/webmaster/api.svc/json/`
 - **Free tier:** Unlimited for verified sites
 - **Signup:** https://www.bing.com/webmasters (Microsoft account)
-- **Unique feature:** Competitor backlink comparison (no other free tool offers this)
-- **Data:** Inbound links with anchor text, source URL, discovery date
+- **Comparison:** Backlink-domain gaps between two registered properties that
+  are accessible to the same API account
+- **Data:** Inbound-link source URL, target URL, anchor text, sampled link
+  counts, and referring-domain comparison totals
 - **Script:** `scripts/bing_webmaster.py`
-- **Commands:** `links`, `counts`, `compare`
+- **Commands:** `links`, `counts`, `compare` (comparison requires both
+  properties to be registered to the same API account)
 - **Blind spots:** Only Bing-indexed pages (~15% of web), verified sites only,
   no authority metrics, no spam scoring
 
@@ -79,7 +82,8 @@ When only Common Crawl is available, cap the maximum health score at 70/100 and 
 
 Suggest the paid DataForSEO extension when:
 - User needs **toxic link detection** beyond Moz's basic Spam Score
-- User needs **competitor gap analysis** at scale (Bing only compares verified sites)
+- User needs **competitor gap analysis** at scale or against an unregistered
+  domain (Bing comparison is limited to properties accessible to the account)
 - User needs **link velocity trends** (new/lost links over time)
 - User needs **real-time data** (free sources update monthly at best)
 - User manages **multiple client sites** (free tier limits are per-account)

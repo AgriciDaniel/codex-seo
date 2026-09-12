@@ -8,14 +8,13 @@ Requires a Google Ads Manager account with a developer token.
 Usage:
     python keyword_planner.py ideas "seo tools" --json
     python keyword_planner.py volume "seo tools,seo audit,seo checker" --json
-    python keyword_planner.py forecast "seo tools" --json
 
 Prerequisites:
     - Google Ads Manager account (can be free)
     - Developer Token (apply at Google Ads API Center)
     - OAuth credentials or service account
     - google-ads Python library: pip install google-ads
-    - Config: ~/.config/codex-seo/google-api.json with:
+    - Config: ~/.config/claude-seo/google-api.json with:
       {
         "ads_developer_token": "YOUR_DEV_TOKEN",
         "ads_customer_id": "123-456-7890",
@@ -28,6 +27,7 @@ Note: Accounts without active ad spend receive bucketed volume ranges
 
 import argparse
 import json
+import os
 import sys
 from typing import Optional
 
@@ -41,7 +41,6 @@ except ImportError:
 try:
     from google_auth import load_config
 except ImportError:
-    import os
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from google_auth import load_config
 
@@ -64,7 +63,7 @@ def _build_ads_client() -> Optional[object]:
     if not dev_token:
         print(
             "Error: No Google Ads developer token configured. "
-            "Add 'ads_developer_token' to ~/.config/codex-seo/google-api.json. "
+            "Add 'ads_developer_token' to ~/.config/claude-seo/google-api.json. "
             "Get a token at: https://ads.google.com/aw/apicenter",
             file=sys.stderr,
         )
@@ -88,10 +87,7 @@ def _build_ads_client() -> Optional[object]:
             ads_config["login_customer_id"] = login_customer_id
 
         # Try to use OAuth token if available
-        token_path = os.path.expanduser("~/.config/codex-seo/oauth-token.json")
-        legacy_token_path = os.path.expanduser("~/.config/claude-seo/oauth-token.json")
-        if not os.path.exists(token_path) and os.path.exists(legacy_token_path):
-            token_path = legacy_token_path
+        token_path = os.path.expanduser("~/.config/claude-seo/oauth-token.json")
         if os.path.exists(token_path):
             with open(token_path) as f:
                 token_data = json.load(f)

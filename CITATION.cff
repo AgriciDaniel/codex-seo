@@ -1,22 +1,22 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite it as below."
+title: Claude SEO
+message: >-
+  If you use this software, please cite it using the metadata from this file.
 type: software
-title: "Codex SEO"
-version: "1.9.6+codex.1"
-date-released: "2026-04-27"
 authors:
-  - name: "AgriciDaniel"
-url: "https://github.com/AgriciDaniel/codex-seo"
-license: "MIT"
+  - alias: AgriciDaniel
+    given-names: Daniel
+    family-names: Agrici
+    website: 'https://agricidaniel.com'
+repository-code: 'https://github.com/AgriciDaniel/claude-seo'
+url: 'https://github.com/AgriciDaniel/claude-seo'
+license: MIT
+version: 2.2.4
+date-released: '2026-07-20'
 keywords:
   - seo
-  - codex
-  - codex-cli
-  - seo-audit
-  - python
-references:
-  - type: software
-    title: "codex-seo"
-    authors:
-      - name: "AgriciDaniel"
-    repository-code: "https://github.com/AgriciDaniel/codex-seo"
+  - claude-code
+  - ai-tools
+  - schema-markup
+  - e-e-a-t
+  - geo
