@@ -19,10 +19,10 @@ When analyzing pages:
 - **SpecialAnnouncement**: Deprecated July 31, 2025
 - **CourseInfo, EstimatedSalary, LearningVideo**: Retired June 2025
 
-### Restricted Schema:
-- **FAQ**: Google rich results restricted to government and healthcare sites (August 2023).
-  - **Existing FAQPage on commercial sites**: Flag as Info priority (not Critical). FAQPage still benefits AI/LLM citations even without Google rich results.
-  - **Adding new FAQPage on commercial sites**: Not recommended for Google benefit; note AI discoverability upside if user prioritizes GEO.
+### Valid Schema.org Without Google Rich-Result Support:
+- **FAQPage**: Google removed FAQ rich results for every site on May 7, 2026.
+  - **Existing FAQPage**: Validate that it matches complete, visible FAQ content. Do not report Google eligibility.
+  - **Adding new FAQPage**: Do not recommend it for Google or claim AI/LLM visibility gains without platform-specific evidence.
 
 ### Always Prefer:
 - JSON-LD format over Microdata or RDFa

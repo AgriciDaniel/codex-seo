@@ -1,5 +1,5 @@
-<!-- Updated: 2026-02-07 -->
-# Schema.org Types: Status & Recommendations (February 2026)
+<!-- Updated: 2026-07-17 -->
+# Schema.org Types: Status & Recommendations (July 2026)
 
 **Schema.org Version:** 29.4 (December 8, 2025)
 
@@ -43,17 +43,18 @@ Google's documentation explicitly recommends JSON-LD over Microdata and RDFa.
 
 ---
 
-## Restricted: Only for specific site types
+## Valid Schema.org types without Google rich-result support
 
-| Type | Restriction | Since |
-|------|------------|-------|
-| FAQPage | Government and healthcare authority sites ONLY | August 2023 |
+| Type | Google Search status | Since |
+|------|----------------------|-------|
+| FAQPage | FAQ rich result removed | May 7, 2026 |
 
-> Google severely limited FAQ rich results in August 2023. Only authoritative sources (government, health organizations) receive FAQ rich results.
+> Google stopped showing FAQ rich results for every site on May 7, 2026 and removed the feature documentation in June 2026. `FAQPage` remains a valid Schema.org type, but it has no Google rich-result eligibility.
 >
-> **GEO nuance**: FAQPage schema still benefits AI/LLM citation visibility (ChatGPT, Perplexity, Google AI Overviews), even without Google rich results.
-> - **Existing FAQPage on commercial site**: Flag at Info priority, not Critical. Removal removes GEO citation upside.
-> - **Adding new FAQPage**: Not recommended for Google benefit; acceptable if AI search visibility is a priority.
+> - **Existing FAQPage**: Validate that it matches complete, visible FAQ content. Do not report it as a Google rich-result opportunity.
+> - **Adding new FAQPage**: Do not recommend it for Google or an unverified AI/LLM visibility benefit. Add it only when another identified consumer needs the semantic markup.
+>
+> References: [Google Search documentation updates](https://developers.google.com/search/updates#june-2026) and [Schema.org FAQPage](https://schema.org/FAQPage).
 
 ---
 
