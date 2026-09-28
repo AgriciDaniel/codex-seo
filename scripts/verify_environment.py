@@ -10,6 +10,8 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import importlib
 import json
 import sys
@@ -85,7 +87,8 @@ def normalize_url(target: str) -> str:
 def check_dependency(module_name: str, package_name: str) -> dict[str, Any]:
     """Check whether a dependency can be imported."""
     try:
-        module = importlib.import_module(module_name)
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            module = importlib.import_module(module_name)
         version = getattr(module, "__version__", None)
         return {"package": package_name, "module": module_name, "ok": True, "version": version}
     except Exception as exc:  # noqa: BLE001
@@ -201,6 +204,11 @@ def verify_environment(target: str | None = None) -> dict[str, Any]:
         checks["notes"].append(f"Missing Google API packages: {', '.join(missing_google)}.")
     if missing_optional:
         checks["notes"].append(f"Missing optional packages: {', '.join(missing_optional)}.")
+    for path_name, path_check in writable_checks.items():
+        if not path_check["ok"]:
+            checks["notes"].append(
+                f"Cannot write {path_name} path {path_check['path']}: {path_check.get('error', 'unknown error')}."
+            )
     if not missing_visual and not playwright_browser["ok"]:
         checks["notes"].append("Playwright Chromium is unavailable, so visual analysis and PDF generation are not fully ready until `playwright install chromium` succeeds.")
     if checks["capabilities"]["core_ready"] and not checks["capabilities"]["full_ready"]:

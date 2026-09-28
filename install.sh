@@ -2,14 +2,15 @@
 set -euo pipefail
 
 resolve_python() {
-    if command -v python3 >/dev/null 2>&1; then
-        printf '%s\n' "python3"
-        return
-    fi
-    if command -v python >/dev/null 2>&1; then
-        printf '%s\n' "python"
-        return
-    fi
+    for candidate in python3.13 python3.12 python3.11 python3.10 python3 python; do
+        if ! command -v "${candidate}" >/dev/null 2>&1; then
+            continue
+        fi
+        if "${candidate}" -c 'import sys; raise SystemExit(0 if (3, 10) <= sys.version_info[:2] < (3, 14) else 1)' >/dev/null 2>&1; then
+            printf '%s\n' "${candidate}"
+            return
+        fi
+    done
     return 1
 }
 
@@ -78,7 +79,16 @@ main() {
     SKILL_DIR="${SKILLS_ROOT}/seo"
     REPO_URL="${CODEX_SEO_REPO:-https://github.com/AgriciDaniel/codex-seo}"
     REPO_REF="${CODEX_SEO_REF:-v1.9.6-codex.5}"
-    PYTHON_BIN="$(resolve_python)" || { echo "[ERROR] Python 3 is required but not installed."; exit 1; }
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    LOCAL_SOURCE=""
+    if [ -f "${SCRIPT_DIR}/.codex-plugin/plugin.json" ] && [ -f "${SCRIPT_DIR}/skills/seo/SKILL.md" ]; then
+        LOCAL_SOURCE="${SCRIPT_DIR}"
+    fi
+    PYTHON_BIN="$(resolve_python)" || {
+        echo "[ERROR] Python 3.10-3.13 is required but not installed."
+        echo "[ERROR] Python 3.14 is not supported yet by all Codex SEO dependencies."
+        exit 1
+    }
     SUITE_SKILL_DIRS=(
         seo
         seo-audit
@@ -118,9 +128,9 @@ main() {
     command -v git >/dev/null 2>&1 || { echo "[ERROR] Git is required but not installed."; exit 1; }
 
     PYTHON_VERSION="$("${PYTHON_BIN}" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
-    PYTHON_OK="$("${PYTHON_BIN}" -c 'import sys; print(1 if sys.version_info >= (3, 10) else 0)')"
+    PYTHON_OK="$("${PYTHON_BIN}" -c 'import sys; print(1 if (3, 10) <= sys.version_info[:2] < (3, 14) else 0)')"
     if [ "${PYTHON_OK}" = "0" ]; then
-        echo "[ERROR] Python 3.10+ is required but ${PYTHON_VERSION} was found."
+        echo "[ERROR] Python 3.10-3.13 is required but ${PYTHON_VERSION} was found."
         exit 1
     fi
     echo "[OK] Python ${PYTHON_VERSION} detected"
@@ -130,13 +140,19 @@ main() {
     TEMP_DIR="$(make_temp_dir)" || { echo "[ERROR] Unable to create a temporary directory."; exit 1; }
     trap 'rm -rf "${TEMP_DIR}"' EXIT
 
-    echo "[INFO] Downloading Codex SEO (${REPO_REF})..."
-    if ! git clone --depth 1 --branch "${REPO_REF}" "${REPO_URL}" "${TEMP_DIR}/codex-seo" 2>/dev/null; then
-        echo "[ERROR] Unable to download ref ${REPO_REF}. Confirm the branch/tag exists and your Git credentials can access ${REPO_URL}."
-        exit 1
+    if [ -n "${LOCAL_SOURCE}" ]; then
+        echo "[INFO] Installing Codex SEO from local checkout..."
+        CHECKOUT_DIR="${LOCAL_SOURCE}"
+    else
+        echo "[INFO] Downloading Codex SEO (${REPO_REF})..."
+        CHECKOUT_DIR="${TEMP_DIR}/codex-seo"
+        if ! git clone --depth 1 --branch "${REPO_REF}" "${REPO_URL}" "${CHECKOUT_DIR}" 2>/dev/null; then
+            echo "[ERROR] Unable to download ref ${REPO_REF}. Confirm the branch/tag exists and your Git credentials can access ${REPO_URL}."
+            exit 1
+        fi
     fi
 
-    INSTALLED_COMMIT="$(git -C "${TEMP_DIR}/codex-seo" rev-parse HEAD)"
+    INSTALLED_COMMIT="$(git -C "${CHECKOUT_DIR}" rev-parse HEAD)"
 
     echo "[INFO] Resetting existing Codex SEO install..."
     for skill_name in "${SUITE_SKILL_DIRS[@]}"; do
@@ -145,8 +161,8 @@ main() {
     rm -f "${AGENT_DIR}/seo-"*.md "${AGENT_DIR}/seo-"*.toml 2>/dev/null || true
 
     echo "[INFO] Installing skill files..."
-    if [ -d "${TEMP_DIR}/codex-seo/skills" ]; then
-        for skill_dir in "${TEMP_DIR}/codex-seo/skills"/*/; do
+    if [ -d "${CHECKOUT_DIR}/skills" ]; then
+        for skill_dir in "${CHECKOUT_DIR}/skills"/*/; do
             [ -d "${skill_dir}" ] || continue
             skill_name="$(basename "${skill_dir}")"
             target="${SKILLS_ROOT}/${skill_name}"
@@ -156,26 +172,26 @@ main() {
     fi
 
     for dir_name in scripts schema pdf hooks extensions; do
-        if [ -d "${TEMP_DIR}/codex-seo/${dir_name}" ]; then
+        if [ -d "${CHECKOUT_DIR}/${dir_name}" ]; then
             mkdir -p "${SKILL_DIR}/${dir_name}"
-            cp -r "${TEMP_DIR}/codex-seo/${dir_name}/." "${SKILL_DIR}/${dir_name}/"
+            cp -r "${CHECKOUT_DIR}/${dir_name}/." "${SKILL_DIR}/${dir_name}/"
         fi
     done
 
-    for requirements_file in "${TEMP_DIR}/codex-seo"/requirements*.txt; do
+    for requirements_file in "${CHECKOUT_DIR}"/requirements*.txt; do
         [ -f "${requirements_file}" ] || continue
         cp "${requirements_file}" "${SKILL_DIR}/$(basename "${requirements_file}")"
     done
 
     for doc_name in CHANGELOG.md README.md; do
-        if [ -f "${TEMP_DIR}/codex-seo/${doc_name}" ]; then
-            cp "${TEMP_DIR}/codex-seo/${doc_name}" "${SKILL_DIR}/${doc_name}"
+        if [ -f "${CHECKOUT_DIR}/${doc_name}" ]; then
+            cp "${CHECKOUT_DIR}/${doc_name}" "${SKILL_DIR}/${doc_name}"
         fi
     done
 
     echo "[INFO] Installing agent profiles..."
-    if [ -d "${TEMP_DIR}/codex-seo/agents" ]; then
-        cp "${TEMP_DIR}/codex-seo/agents/"*.toml "${AGENT_DIR}/"
+    if [ -d "${CHECKOUT_DIR}/agents" ]; then
+        cp "${CHECKOUT_DIR}/agents/"*.toml "${AGENT_DIR}/"
     fi
 
     BOOTSTRAP_SCRIPT="${SKILL_DIR}/scripts/bootstrap_environment.py"
