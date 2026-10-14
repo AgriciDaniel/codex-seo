@@ -49,7 +49,10 @@ try:
 except Exception:
     sys.exit(0)
 
-notes = payload.get("verification", {}).get("notes", [])
+verification = payload.get("verification")
+notes = verification.get("notes", []) if isinstance(verification, dict) else []
+if not isinstance(notes, list):
+    notes = []
 for note in notes[:5]:
     print(f"[ERROR] {note}")
 
@@ -254,4 +257,6 @@ main() {
     echo ""
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi
